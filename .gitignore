@@ -1,32 +1,5 @@
-# Ignore Python cache files
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-
 # Ignore Jupyter notebook checkpoints
 .ipynb_checkpoints/
 
-# Ignore data files, except when necessary
-data/raw/
-data/processed/
-!data/processed/sequential_convos.csv  # If you want to include this specific file
-
-# Ignore models directory (assuming it contains large, generated files)
-models/
-
-# Ignore configuration files with sensitive information
-config/*.yaml
-config/*.yml
-config/*.json
-
-# Ignore any virtual environment or dependencies
-venv/
-.env
-*.env
-
 # Ignore OS-specific files
 .DS_Store
-
-# Ignore other IDE-specific files (like VS Code settings)
-.vscode/
