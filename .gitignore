@@ -3,3 +3,7 @@
 
 # Ignore OS-specific files
 .DS_Store
+
+# Ignore large files to adhere to size limits
+data/processed/labeled_with_embeddings.csv
+data/embeddings/snippet_embeddings.pkl

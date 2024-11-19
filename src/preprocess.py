@@ -23,8 +23,14 @@ for i in range(0, len(df), batch_size):
     batch_embeddings = model.encode(batch_texts)
     embeddings.extend(batch_embeddings)
 
+embeddings = np.array(embeddings)
+
 # Save the embeddings
 with open(output_path, 'wb') as f:
-    pickle.dump(np.array(embeddings), f)
+    pickle.dump(embeddings, f)
 
 print("Embedding generation completed and saved.")
+
+# Add embeddings to df
+df['embeddings'] = embeddings.tolist()
+df.to_csv("../data/processed/labeled_with_embeddings.csv", index=False)
