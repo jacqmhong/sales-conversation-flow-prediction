@@ -1,0 +1,8 @@
+embedding:
+  model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  output_path: "../data/embeddings/snippet_embeddings.pkl"
+  batch_size: 32
+clustering:
+  algorithm: "kmeans"
+  n_clusters: 4 # 4
+  model_output_path: "../models/cluster_model.pkl"
