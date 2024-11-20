@@ -1,13 +1,22 @@
-# Second-Order Markov Model
+"""
+This script implements a second-order Markov model to predict the next response type
+or conversation stage in a sales conversation. Using accuracy, precision, recall, and F1-score,
+it evaluates the performance of the Markov model as a baseline for the LSTM model in train.py.
 
+Outputs:
+    - Transition matrices for response_type and conversation_stage.
+    - Performance evaluation of the Markov model on the test dataset.
+"""
 from collections import defaultdict
 import pandas as pd
 import pickle
 from sklearn.metrics import f1_score, precision_score, recall_score
 
-# Load and sort the dataset by conversation_id and turn order
-df = pd.read_csv("../data/processed/labeled_with_embeddings.csv")
-df = df.sort_values(by=["conversation_id", "turn"])
+# Load and sort the data by conversation_id and turn order
+train_df = pd.read_csv("../data/processed/train_data.csv") # to build the transition matrix
+train_df = train_df.sort_values(by=["conversation_id", "turn"])
+test_df = pd.read_csv("../data/processed/test_data.csv") # for evaluation
+test_df = test_df.sort_values(by=["conversation_id", "turn"])
 
 # Create the 2nd-order transition matrix (1st-order yielded worse results)
 def build_transition_matrix(sequences):
@@ -52,31 +61,21 @@ def evaluate_markov_model(sequences, transition_matrix):
     f1 = f1_score(y_true, y_pred, average="weighted")
     precision = precision_score(y_true, y_pred, average="weighted", zero_division=0)
     recall = recall_score(y_true, y_pred, average="weighted", zero_division=0)
+    print(f"Test Results: Accuracy={accuracy:.2f}, Precision={precision:.2f}, Recall={recall:.2f}, F1-Score={f1:.2f}")
 
-    # Print metrics
-    print(f"Accuracy: {accuracy:.2f}")
-    print(f"F1-Score: {f1:.2f}")
-    print(f"Precision: {precision:.2f}")
-    print(f"Recall: {recall:.2f}")
+def process_markov_model(target_name, train_df, test_df):
+    # Build and evaluate the transition matrix
+    train_sequences = train_df.groupby("conversation_id")[target_name].apply(list)
+    transition_matrix = build_transition_matrix(train_sequences) # build
+    test_sequences = test_df.groupby("conversation_id")[target_name].apply(list)
+    evaluate_markov_model(test_sequences, transition_matrix) # evaluate
 
-# Process for response_type
-response_sequences = df.groupby("conversation_id")["response_type"].apply(list)
-response_transition_matrix = build_transition_matrix(response_sequences)
-evaluate_markov_model(response_sequences, response_transition_matrix)
+    output_path = f"../models/markov_matrices/{target_name}_markov_transition_matrix.pkl"
+    with open(output_path, "wb") as f:
+        pickle.dump(transition_matrix, f)
 
-with open("../models/response_type_markov_transition_matrix.pkl", "wb") as f:
-    pickle.dump(response_transition_matrix, f)
+    print(f"Sample state pairs in the {target_name} transition matrix:")
+    print(list(transition_matrix.keys())[:10])
 
-print("Sample state pairs in the response_type transition matrix:")
-print(list(response_transition_matrix.keys())[:10])
-
-# Process for conversation_stage
-stage_sequences = df.groupby("conversation_id")["conversation_stage"].apply(list)
-stage_transition_matrix = build_transition_matrix(stage_sequences)
-evaluate_markov_model(stage_sequences, stage_transition_matrix)
-
-with open("../models/conversation_stage_markov_transition_matrix.pkl", "wb") as f:
-    pickle.dump(stage_transition_matrix, f)
-
-print("Sample state pairs in the conversation_stage transition matrix:")
-print(list(stage_transition_matrix.keys())[:10])
+process_markov_model("response_type", train_df, test_df)
+process_markov_model("conversation_stage", train_df, test_df)
