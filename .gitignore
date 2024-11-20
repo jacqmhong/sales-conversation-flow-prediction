@@ -6,4 +6,5 @@
 
 # Ignore large files to adhere to size limits
 data/processed/labeled_with_embeddings.csv
-data/embeddings/snippet_embeddings.pkl
+data/processed/sequential_convos.csv
+data/embeddings/
