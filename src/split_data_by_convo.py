@@ -42,6 +42,6 @@ print(f"Test set: {len(test_df)} rows")
 for target_name in ["response_type", "conversation_stage"]:
     label_encoder = LabelEncoder()
     label_encoder.fit(df[target_name])
-    with open(f"../models/label_encoder_{target_name}.pkl", "wb") as f:
+    with open(f"../models/label_encoders/label_encoder_{target_name}.pkl", "wb") as f:
         pickle.dump(label_encoder, f)
     print(f"LabelEncoder for {target_name} saved.")

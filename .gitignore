@@ -11,4 +11,3 @@ data/processed/sequential_convos.csv
 data/processed/train_data.csv
 data/processed/val_data.csv
 data/processed/test_data.csv
-models/label_encoder_*.pkl
