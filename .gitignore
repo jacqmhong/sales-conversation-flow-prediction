@@ -5,6 +5,9 @@
 .DS_Store
 
 # Ignore large files to adhere to size limits
+data/embeddings/
 data/processed/labeled_with_embeddings.csv
 data/processed/sequential_convos.csv
-data/embeddings/
+data/processed/train_data.csv
+data/processed/val_data.csv
+data/processed/test_data.csv
