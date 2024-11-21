@@ -3,3 +3,9 @@ embedding:
   pca_components: 50
   output_path: "../data/embeddings/snippet_embeddings.pkl"
   batch_size: 32
+lstm:
+  units: 64
+  dropout: 0.2
+  batch_size: 32
+  epochs: 10
+  learning_rate: 0.001
