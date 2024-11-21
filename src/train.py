@@ -1,3 +1,9 @@
+"""
+This script trains LSTM models for predicting response types and conversation stages in sales conversations.
+It combines embeddings with metadata features, builds and trains the models, and then evaluates their performance
+on the validation set using accuracy, precision, recall, and F1-score. The trained models and their corresponding
+metrics are saved for later use and comparison.
+"""
 import numpy as np
 import pandas as pd
 import pickle
@@ -55,7 +61,7 @@ def train_and_save_lstm(target_name):
     history = model.fit(np.expand_dims(X_train, axis=2), y_train, validation_data=(np.expand_dims(X_val, axis=2), y_val), epochs=epochs, batch_size=batch_size)
     results = model.evaluate(np.expand_dims(X_val, axis=2), y_val, verbose=0)
     loss, accuracy, precision, recall = results
-    print(f"Test Results for {target_name}: Accuracy={accuracy:.2f}, Precision={precision:.2f}, Recall={recall:.2f}, Loss={loss:.2f}")
+    print(f"\nVal Results for {target_name}: Accuracy={accuracy:.2f}, Precision={precision:.2f}, Recall={recall:.2f}, Loss={loss:.2f}\n")
 
     # Generate and save classification report
     y_pred = np.argmax(model.predict(np.expand_dims(X_val, axis=2)), axis=1)
@@ -70,6 +76,7 @@ def train_and_save_lstm(target_name):
     metrics_df = pd.DataFrame(history.history)
     metrics_df.to_csv(f"../models/lstm_models/{target_name}_training_metrics.csv", index=False)
 
-# Train and save response_type and conversation_stage models
-train_and_save_lstm("response_type")
-train_and_save_lstm("conversation_stage")
+# Main execution block: Train and save response_type and conversation_stage models
+if __name__ == "__main__":
+    train_and_save_lstm("response_type")
+    train_and_save_lstm("conversation_stage")

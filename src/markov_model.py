@@ -8,9 +8,9 @@ Outputs:
     - Performance evaluation of the Markov model on the test dataset.
 """
 from collections import defaultdict
+from evaluate import evaluate_markov_model
 import pandas as pd
 import pickle
-from sklearn.metrics import f1_score, precision_score, recall_score
 
 # Load and sort the data by conversation_id and turn order
 train_df = pd.read_csv("../data/processed/train_data.csv") # to build the transition matrix
@@ -37,38 +37,12 @@ def build_transition_matrix(sequences):
 
     return transition_matrix
 
-def predict_next_response(current_state, transition_matrix):
-    if current_state not in transition_matrix:
-        return None  # no data for this state
-    return max(transition_matrix[current_state], key=transition_matrix[current_state].get)
-
-# Evaluate the model with accuracy, precision, recall, and f1-score
-def evaluate_markov_model(sequences, transition_matrix):
-    y_true = []
-    y_pred = []
-
-    for sequence in sequences:
-        for i in range(len(sequence) - 2):
-            current_state = (sequence[i], sequence[i + 1])
-            actual_next = sequence[i + 2]
-            predicted_next = predict_next_response(current_state, transition_matrix)
-
-            y_true.append(actual_next)
-            y_pred.append(predicted_next if predicted_next else "Other")
-
-    # Calculate metrics
-    accuracy = sum(yt == yp for yt, yp in zip(y_true, y_pred)) / len(y_true)
-    f1 = f1_score(y_true, y_pred, average="weighted")
-    precision = precision_score(y_true, y_pred, average="weighted", zero_division=0)
-    recall = recall_score(y_true, y_pred, average="weighted", zero_division=0)
-    print(f"Test Results: Accuracy={accuracy:.2f}, Precision={precision:.2f}, Recall={recall:.2f}, F1-Score={f1:.2f}")
-
 def process_markov_model(target_name, train_df, test_df):
     # Build and evaluate the transition matrix
     train_sequences = train_df.groupby("conversation_id")[target_name].apply(list)
     transition_matrix = build_transition_matrix(train_sequences) # build
     test_sequences = test_df.groupby("conversation_id")[target_name].apply(list)
-    evaluate_markov_model(test_sequences, transition_matrix) # evaluate
+    evaluate_markov_model(test_sequences, transition_matrix, target_name) # evaluate
 
     output_path = f"../models/markov_matrices/{target_name}_markov_transition_matrix.pkl"
     with open(output_path, "wb") as f:
