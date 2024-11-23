@@ -9,7 +9,8 @@ import pickle
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, classification_report
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import to_categorical
-from train import prepare_features
+from train import create_sequences, prepare_features
+import yaml
 
 # Helper for evaluate_markov_model to predict the next response using the markov transition matrix
 def get_markov_prediction(current_state, transition_matrix):
@@ -36,9 +37,9 @@ def evaluate_markov_model(sequences, transition_matrix, target_name):
     print(f"\n{target_name} Markov Model Results: Accuracy={accuracy:.2f}, Precision={precision:.2f}, Recall={recall:.2f}, F1-Score={f1:.2f}\n")
 
 # Evaluate the LSTM model
-def evaluate_lstm_model(model, X_test, y_test, label_encoder, target_name):
-    preds = np.argmax(model.predict(X_test), axis=1)
-    y_true = np.argmax(y_test, axis=1)
+def evaluate_lstm_model(model, X_test_seq, y_test_seq, label_encoder, target_name):
+    preds = np.argmax(model.predict(X_test_seq), axis=1)
+    y_true = np.argmax(y_test_seq, axis=1)
 
     # Calculate metrics
     accuracy = accuracy_score(y_true, preds)
@@ -46,11 +47,16 @@ def evaluate_lstm_model(model, X_test, y_test, label_encoder, target_name):
     recall = recall_score(y_true, preds, average="weighted", zero_division=0)
     f1 = f1_score(y_true, preds, average="weighted", zero_division=0)
     print(f"\n{target_name} LSTM Model Results: Accuracy={accuracy:.2f}, Precision={precision:.2f}, Recall={recall:.2f}, F1-Score={f1:.2f}\n")
-    report = classification_report(y_true, preds, target_names=label_encoder.classes_)
+    report = classification_report(y_true, preds, target_names=label_encoder.classes_, labels=np.arange(len(label_encoder.classes_)))
     print(f"\nLSTM Model Performance - Classification Report for {target_name}:\n{report}")
 
 # Main execution block: Load data and evaluate models
 if __name__ == "__main__":
+    # Load sequence length from config.yaml
+    with open("../config/config.yaml", "r") as config_file:
+        config = yaml.safe_load(config_file)
+    sequence_len = config["lstm"]["sequence_len"]
+
     # Load and prepare test data: Combine embeddings with metadata features (speaker and turn)
     df = pd.read_csv("../data/processed/test_data.csv")
     X = prepare_features(df)
@@ -73,12 +79,16 @@ if __name__ == "__main__":
     print("\n--- Evaluating Response Type ---")
     response_sequences = df.groupby("conversation_id")["response_type"].apply(list)
     evaluate_markov_model(response_sequences, response_type_markov_matrix, "response_type") # markov
-    y_response = to_categorical(response_type_label_encoder.transform(df["response_type"]))
-    evaluate_lstm_model(response_type_model, np.expand_dims(X, axis=2), y_response, response_type_label_encoder, "response_type") # lstm
+    y_response = response_type_label_encoder.transform(df["response_type"])
+    X_response_seq, y_response_seq = create_sequences(X, y_response, df["conversation_id"].to_numpy(), sequence_len=sequence_len)
+    y_response_seq = to_categorical(y_response_seq, num_classes=len(response_type_label_encoder.classes_))
+    evaluate_lstm_model(response_type_model, X_response_seq, y_response_seq, response_type_label_encoder, "response_type") #lstm
 
     # Conversation Stage Evaluation: Markov and LSTM
     print("\n--- Evaluating Conversation Stage ---")
     conversation_sequences = df.groupby("conversation_id")["conversation_stage"].apply(list)
     evaluate_markov_model(conversation_sequences, conversation_stage_markov_matrix, "conversation_stage") # markov
-    y_conv_stage = to_categorical(conv_stage_label_encoder.transform(df["conversation_stage"]))
-    evaluate_lstm_model(conv_stage_model, np.expand_dims(X, axis=2), y_conv_stage, conv_stage_label_encoder, "conversation_stage") # lstm
+    y_conv_stage = conv_stage_label_encoder.transform(df["conversation_stage"])
+    X_conv_stage_seq, y_conv_stage_seq = create_sequences(X, y_conv_stage, df["conversation_id"].to_numpy(), sequence_len=sequence_len)
+    y_conv_stage_seq = to_categorical(y_conv_stage_seq, num_classes=len(conv_stage_label_encoder.classes_))
+    evaluate_lstm_model(conv_stage_model, X_conv_stage_seq, y_conv_stage_seq, conv_stage_label_encoder, "conversation_stage") # lstm
