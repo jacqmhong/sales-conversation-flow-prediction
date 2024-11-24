@@ -15,7 +15,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
 import yaml
 
-# Load initial config and data -- Task-specific tuning can be done later.
+# Load model config
 with open("../config/config.yaml", "r") as config_file:
     config = yaml.safe_load(config_file)
 
@@ -47,16 +47,17 @@ def create_sequences(X, y, convo_ids, sequence_len):
 X_train = prepare_features(train_df)
 X_val = prepare_features(val_df)
 
-# Model parameters
-input_dim = X_train.shape[1] # embedding dim + metadata dim (2)
-lstm_units = config["lstm"]["units"]
-dropout_rate = config["lstm"]["dropout"]
-batch_size = config["lstm"]["batch_size"]
-max_epochs = config["lstm"]["epochs"]
-learning_rate = config["lstm"]["learning_rate"]
-sequence_len = config["lstm"]["sequence_len"]
-
 def train_and_save_lstm(target_name):
+    # Model parameters based on target
+    input_dim = X_train.shape[1] # embedding dim + metadata dim (2)
+    lstm_config = config["lstm"][target_name]
+    lstm_units = lstm_config["units"]
+    dropout_rate = lstm_config["dropout"]
+    batch_size = lstm_config["batch_size"]
+    max_epochs = lstm_config["epochs"]
+    learning_rate = lstm_config["learning_rate"]
+    sequence_len = lstm_config["sequence_len"]
+
     with open(f"../models/label_encoders/label_encoder_{target_name}.pkl", "rb") as f:
         label_encoder = pickle.load(f)
 

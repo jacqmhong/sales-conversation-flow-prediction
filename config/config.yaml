@@ -4,9 +4,17 @@ embedding:
   output_path: "../data/embeddings/snippet_embeddings.pkl"
   batch_size: 32
 lstm:
-  units: 128
-  dropout: 0.2
-  batch_size: 32
-  epochs: 50 # max with earlystopping
-  learning_rate: 0.001
-  sequence_len: 5
+  response_type:
+    units: 128
+    dropout: 0.2
+    batch_size: 32
+    epochs: 50 # max with earlystopping
+    learning_rate: 0.001
+    sequence_len: 10
+  conversation_stage:
+    units: 128
+    dropout: 0.2
+    batch_size: 64
+    epochs: 50
+    learning_rate: 0.0005
+    sequence_len: 5

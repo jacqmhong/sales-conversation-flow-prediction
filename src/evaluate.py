@@ -50,45 +50,46 @@ def evaluate_lstm_model(model, X_test_seq, y_test_seq, label_encoder, target_nam
     report = classification_report(y_true, preds, target_names=label_encoder.classes_, labels=np.arange(len(label_encoder.classes_)))
     print(f"\nLSTM Model Performance - Classification Report for {target_name}:\n{report}")
 
+# Evaluate both Markov and LSTM models for a specific target.
+def evaluate_target_models(target_name, config, df, X, markov_matrix_path, lstm_model_path, label_encoder_path):
+    # Markov Model Evaluation
+    with open(markov_matrix_path, "rb") as f:
+        markov_matrix = pickle.load(f)
+
+    print(f"\n--- Evaluating {target_name} ---")
+    target_sequences = df.groupby("conversation_id")[target_name].apply(list)
+    evaluate_markov_model(target_sequences, markov_matrix, target_name)
+
+    # LSTM Model Evaluation
+    model = load_model(lstm_model_path)
+    with open(label_encoder_path, "rb") as f:
+        label_encoder = pickle.load(f)
+
+    y_target = label_encoder.transform(df[target_name])
+    sequence_len = config["lstm"][target_name]["sequence_len"]
+    X_seq, y_seq = create_sequences(X, y_target, df["conversation_id"].to_numpy(), sequence_len=sequence_len)
+    y_seq = to_categorical(y_seq, num_classes=len(label_encoder.classes_))
+    evaluate_lstm_model(model, X_seq, y_seq, label_encoder, target_name)
+
 # Main execution block: Load data and evaluate models
 if __name__ == "__main__":
-    # Load sequence length from config.yaml
     with open("../config/config.yaml", "r") as config_file:
         config = yaml.safe_load(config_file)
-    sequence_len = config["lstm"]["sequence_len"]
 
     # Load and prepare test data: Combine embeddings with metadata features (speaker and turn)
     df = pd.read_csv("../data/processed/test_data.csv")
     X = prepare_features(df)
 
-    # Load Markov transition matrices
-    with open("../models/markov_matrices/response_type_markov_transition_matrix.pkl", "rb") as f:
-        response_type_markov_matrix = pickle.load(f)
-    with open("../models/markov_matrices/conversation_stage_markov_transition_matrix.pkl", "rb") as f:
-        conversation_stage_markov_matrix = pickle.load(f)
+    # Evaluate Response Type
+    evaluate_target_models(target_name="response_type", config=config, df=df, X=X,
+        markov_matrix_path="../models/markov_matrices/response_type_markov_transition_matrix.pkl",
+        lstm_model_path="../models/lstm_models/lstm_response_type_model_with_metadata.h5",
+        label_encoder_path="../models/label_encoders/label_encoder_response_type.pkl",
+    )
 
-    # Load LSTM models and encoders
-    response_type_model = load_model("../models/lstm_models/lstm_response_type_model_with_metadata.h5")
-    conv_stage_model = load_model("../models/lstm_models/lstm_conversation_stage_model_with_metadata.h5")
-    with open("../models/label_encoders/label_encoder_response_type.pkl", "rb") as f:
-        response_type_label_encoder = pickle.load(f)
-    with open("../models/label_encoders/label_encoder_conversation_stage.pkl", "rb") as f:
-        conv_stage_label_encoder = pickle.load(f)
-
-    # Response Type Evaluation: Markov and LSTM
-    print("\n--- Evaluating Response Type ---")
-    response_sequences = df.groupby("conversation_id")["response_type"].apply(list)
-    evaluate_markov_model(response_sequences, response_type_markov_matrix, "response_type") # markov
-    y_response = response_type_label_encoder.transform(df["response_type"])
-    X_response_seq, y_response_seq = create_sequences(X, y_response, df["conversation_id"].to_numpy(), sequence_len=sequence_len)
-    y_response_seq = to_categorical(y_response_seq, num_classes=len(response_type_label_encoder.classes_))
-    evaluate_lstm_model(response_type_model, X_response_seq, y_response_seq, response_type_label_encoder, "response_type") #lstm
-
-    # Conversation Stage Evaluation: Markov and LSTM
-    print("\n--- Evaluating Conversation Stage ---")
-    conversation_sequences = df.groupby("conversation_id")["conversation_stage"].apply(list)
-    evaluate_markov_model(conversation_sequences, conversation_stage_markov_matrix, "conversation_stage") # markov
-    y_conv_stage = conv_stage_label_encoder.transform(df["conversation_stage"])
-    X_conv_stage_seq, y_conv_stage_seq = create_sequences(X, y_conv_stage, df["conversation_id"].to_numpy(), sequence_len=sequence_len)
-    y_conv_stage_seq = to_categorical(y_conv_stage_seq, num_classes=len(conv_stage_label_encoder.classes_))
-    evaluate_lstm_model(conv_stage_model, X_conv_stage_seq, y_conv_stage_seq, conv_stage_label_encoder, "conversation_stage") # lstm
+    # Evaluate Conversation Stage
+    evaluate_target_models(target_name="conversation_stage", config=config, df=df, X=X,
+        markov_matrix_path="../models/markov_matrices/conversation_stage_markov_transition_matrix.pkl",
+        lstm_model_path="../models/lstm_models/lstm_conversation_stage_model_with_metadata.h5",
+        label_encoder_path="../models/label_encoders/label_encoder_conversation_stage.pkl",
+    )
