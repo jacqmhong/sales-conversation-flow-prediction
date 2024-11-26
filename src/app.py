@@ -49,29 +49,29 @@ def preprocess_realtime_data(data, sequence_len):
         X_seq, _ = create_sequences(X, None, convo_ids, sequence_len=sequence_len)
     return X_seq
 
-# Predict the response_type of the last turn in the json
+# Probabilities of the next response_type
 @app.route("/predict-response-type", methods=["POST"])
 def predict_response_type():
     try:
         input_data = request.get_json()
         sequence_len = config["lstm"]["response_type"]["sequence_len"]
         X_seq = preprocess_realtime_data(input_data, sequence_len) # preprocess
-        preds = np.argmax(response_type_model.predict(X_seq), axis=1) # lstm pred
-        labels = response_type_label_encoder.inverse_transform(preds)
-        return jsonify({"lstm_predictions": labels.tolist()})
+        response_type_probs = response_type_model.predict(X_seq)[-1].tolist() # lstm pred probabilities
+        response_type_probs = {label: round(prob, 2) for label, prob in zip(response_type_label_encoder.classes_, response_type_probs)}
+        return jsonify({"response_type_probabilities": response_type_probs})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-# Predict the conversation_stage of the last turn in the json
+# Probabilities of the next conversation_stage
 @app.route("/predict-conversation-stage", methods=["POST"])
 def predict_conversation_stage():
     try:
         input_data = request.get_json()
         sequence_len = config["lstm"]["conversation_stage"]["sequence_len"]
         X_seq = preprocess_realtime_data(input_data, sequence_len) # preprocess
-        preds = np.argmax(conversation_stage_model.predict(X_seq), axis=1) # lstm pred
-        labels = conversation_stage_label_encoder.inverse_transform(preds)
-        return jsonify({"lstm_predictions": labels.tolist()})
+        conv_stage_probs = conversation_stage_model.predict(X_seq)[-1].tolist() # lstm pred probabilities
+        conv_stage_probs = {label: round(prob, 2) for label, prob in zip(conversation_stage_label_encoder.classes_, conv_stage_probs)}
+        return jsonify({"conversation_stage_probabilities": conv_stage_probs})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 

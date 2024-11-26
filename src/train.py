@@ -29,20 +29,40 @@ def prepare_features(df):
     turn_number = df.groupby("conversation_id")["turn"].transform(lambda x: x / x.max()).to_numpy() # within each convo
     return np.hstack([embeddings, speaker_role.reshape(-1, 1), turn_number.reshape(-1, 1)])
 
-# Make fixed-length sequences for LSTM
 def create_sequences(X, y, convo_ids, sequence_len):
-    # X: [[A], [B], [C], [D], [E]] for a single convo
-    # y: [0, 0, 1, 1, 0],  seq_len = 3
-    # Output X_seq: [[[A], [B], [C]], [[B], [C], [D]], [[C], [D], [E]]], y_seq: [1, 1, 0]
+    """
+    Forms fixed-length sequences for the LSTM model, shifting the target by one turn in order to predict
+    the label of the next turn. It includes the last valid sequence when predicting with new data (app.py).
+
+    Input:
+        X = [[A], [B], [C], [D], [E]] for a single convo
+        y = [0, 0, 1, 1, 0]
+        sequence_len = 3
+
+    First sequence: Input [[A], [B], [C]], Target: 1 (label of D)
+    Second sequence: Input [[B], [C], [D]], Target: 0 (label of E)
+
+    Output:
+        X_seq = [[[A], [B], [C]], [[B], [C], [D]]]
+        y_seq = [1, 0]
+    """
     X_seq, y_seq = [], []
     unique_convos = np.unique(convo_ids)
     for convo_id in unique_convos:
         convo_X = X[convo_ids == convo_id]
-        convo_y = y[convo_ids == convo_id]
+        convo_y = y[convo_ids == convo_id] if y is not None else None
+
+        # Generate sequences
         for i in range(sequence_len, len(convo_X)):
             X_seq.append(convo_X[i-sequence_len:i])
-            y_seq.append(convo_y[i])
-    return np.array(X_seq), np.array(y_seq)
+            if convo_y is not None:
+                y_seq.append(convo_y[i])
+
+        # Include the last sequence for prediction mode (y=None)
+        if y is None:
+            X_seq.append(convo_X[-sequence_len:])
+
+    return np.array(X_seq), (np.array(y_seq) if y is not None else None)
 
 X_train = prepare_features(train_df)
 X_val = prepare_features(val_df)
