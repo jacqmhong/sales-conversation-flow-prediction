@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from sentence_transformers import SentenceTransformer
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import yaml
 
@@ -25,28 +26,35 @@ for i in range(0, len(df), batch_size):
     batch_embeddings = model.encode(batch_texts)
     embeddings.extend(batch_embeddings)
 
+# Save the original embeddings (used by lstm models)
 embeddings = np.array(embeddings)
+df['embeddings'] = embeddings.tolist()
+with open(output_path, 'wb') as f:
+    pickle.dump(embeddings, f)
+print(f"Original embeddings saved to {output_path}.")
 
 # PCA
 print(f"Applying PCA to reduce embeddings to {pca_components} dimensions.")
 pca = PCA(n_components=pca_components, random_state=0)
 reduced_embeddings = pca.fit_transform(embeddings)
 
-# Save reduced embeddings
+with open("../models/pca_model.pkl", "wb") as f:
+    pickle.dump(pca, f)
+
+# Save reduced embeddings (better silhouette score)
 reduced_output_path = output_path.replace(".pkl", "_reduced.pkl")
 with open(reduced_output_path, 'wb') as f:
     pickle.dump(reduced_embeddings, f)
-
 print(f"Reduced embeddings saved to {reduced_output_path}.")
 
-# Save the original embeddings (still used in cluster_analysis.ipynb to show the difference that PCA made)
-with open(output_path, 'wb') as f:
-    pickle.dump(embeddings, f)
+# Assign and save clusters
+kmeans = KMeans(n_clusters=4, random_state=0)
+cluster_labels = kmeans.fit_predict(reduced_embeddings) # pca embeddings
+df["cluster"] = cluster_labels
 
-print(f"Original embeddings saved to {output_path}.")
+with open("../models/kmeans_model.pkl", "wb") as f:
+    pickle.dump(kmeans, f)
 
-# Add embeddings to df
-df['embeddings'] = embeddings.tolist()
 df.to_csv("../data/processed/labeled_with_embeddings.csv", index=False)
 
-print("Embedding generation completed and saved.")
+print("Embedding generation and clustering completed and saved.")

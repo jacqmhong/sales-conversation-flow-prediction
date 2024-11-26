@@ -27,7 +27,7 @@ def evaluate_markov_model(sequences, transition_matrix, target_name):
             actual_next = sequence[i + 2]
             predicted_next = get_markov_prediction(current_state, transition_matrix)
             y_true.append(actual_next)
-            y_pred.append(predicted_next if predicted_next else "Other")
+            y_pred.append(predicted_next if predicted_next != -1 else -1)
 
     # Calculate metrics
     accuracy = sum(yt == yp for yt, yp in zip(y_true, y_pred)) / len(y_true)

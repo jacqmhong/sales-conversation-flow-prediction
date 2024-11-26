@@ -1,10 +1,10 @@
 """
-This script implements a second-order Markov model to predict the next response type
-or conversation stage in a sales conversation. Using accuracy, precision, recall, and F1-score,
+This script implements a second-order Markov model to predict the next response type,
+conversation stage, or cluster in a sales conversation. Using accuracy, precision, recall, and F1-score,
 it evaluates the performance of the Markov model as a baseline for the LSTM model in train.py.
 
 Outputs:
-    - Transition matrices for response_type and conversation_stage.
+    - Transition matrices for response_type, conversation_stage, and clusters.
     - Performance evaluation of the Markov model on the test dataset.
 """
 from collections import defaultdict
@@ -51,5 +51,8 @@ def process_markov_model(target_name, train_df, test_df):
     print(f"Sample state pairs in the {target_name} transition matrix:")
     print(list(transition_matrix.keys())[:10])
 
-process_markov_model("response_type", train_df, test_df)
-process_markov_model("conversation_stage", train_df, test_df)
+
+if __name__ == "__main__":
+    process_markov_model("response_type", train_df, test_df)
+    process_markov_model("conversation_stage", train_df, test_df)
+    process_markov_model("cluster", train_df, test_df) # cluster transitions
