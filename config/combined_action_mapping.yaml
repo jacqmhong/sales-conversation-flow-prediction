@@ -1,0 +1,73 @@
+combined_action_mapping:
+  # Conversation Stage - Response Type
+  "Closing/Call to Action":
+    "Affirmation": "Confirm agreement and schedule a demo or meeting to finalize the deal."
+    "Acknowledgment": "Reiterate key benefits and propose immediate next steps to close."
+    "Disagreement": "Address concerns confidently and align on mutual goals to move forward."
+    "Objection": "Resolve objections with a customer story or case study, and suggest next steps."
+    "Request for Action": "Guide them step-by-step through signing or scheduling a demo."
+    "Suggestion/Recommendation": "Incorporate their feedback to solidify their commitment."
+    "Other": "Ask a pointed question to uncover lingering objections and overcome them."
+    "Question": "Answer decisively and pivot toward finalizing the deal."
+    "Clarification": "Summarize progress so far and confirm alignment before closing."
+    "Explanation": "Provide concise details that reinforce why this solution is the right fit."
+
+  "Introduction":
+    "Affirmation": "Transition to discussing their challenges and how the solution aligns."
+    "Acknowledgment": "Express excitement about their interest and propose exploring the solution further."
+    "Disagreement": "Address concerns tactfully, ensuring alignment with their goals."
+    "Objection": "Handle resistance gracefully while introducing key product benefits."
+    "Request for Action": "Encourage scheduling a demo to dive deeper into their needs."
+    "Suggestion/Recommendation": "Appreciate their input and connect it to your product's strengths."
+    "Other": "Ask a specific question to understand their goals and tailor the introduction."
+    "Question": "Respond confidently to build credibility and maintain momentum."
+    "Clarification": "Restate your introduction clearly to establish a mutual understanding."
+    "Explanation": "Provide relevant details about the product or service to build trust."
+
+  "Product Discussion":
+    "Affirmation": "Highlight a customer success story and guide them toward scheduling a demo."
+    "Acknowledgment": "Build rapport by aligning their interest with product features."
+    "Disagreement": "Clarify any misconceptions and emphasize features that address their needs."
+    "Objection": "Reassure them with concrete examples of similar customer successes."
+    "Request for Action": "Prompt them to schedule a follow-up meeting to explore features in-depth."
+    "Suggestion/Recommendation": "Validate their input and incorporate it into the next discussion."
+    "Other": "Introduce complementary features to further align with their needs."
+    "Question": "Answer thoroughly and pivot toward showcasing advanced features."
+    "Clarification": "Ensure they fully understand the key benefits before progressing."
+    "Explanation": "Deep dive into specific product features that directly address their priorities."
+
+  "Information Gathering":
+    "Affirmation": "Continue probing for deeper insights into the customer's needs."
+    "Acknowledgment": "Summarize their input and transition to the next topic."
+    "Disagreement": "Clarify misalignments and refine your understanding."
+    "Objection": "Address concerns tactfully while gathering more data."
+    "Request for Action": "Follow up on their request and probe further for clarity."
+    "Suggestion/Recommendation": "Explore their suggestions and adapt the conversation."
+    "Other": "Ask an open-ended question to keep the conversation moving."
+    "Question": "Respond with detailed answers to show expertise and build trust."
+    "Clarification": "Ask targeted follow-up questions to confirm understanding."
+    "Explanation": "Offer relevant details to address their interest."
+
+  "Objection Handling":
+    "Affirmation": "Thank them for their input and confirm resolution of the objection."
+    "Acknowledgment": "Acknowledge the objection and provide reassurance."
+    "Disagreement": "Reframe the objection to demonstrate alignment with their needs."
+    "Objection": "Delve deeper to uncover and address the root cause of their concern."
+    "Request for Action": "Act on their request while addressing the objection."
+    "Suggestion/Recommendation": "Validate their suggestion and incorporate it into the resolution."
+    "Other": "Redirect the conversation to a positive topic."
+    "Question": "Answer questions thoroughly to resolve doubts."
+    "Clarification": "Clarify misunderstandings and pivot to resolving concerns."
+    "Explanation": "Provide a detailed explanation to overcome their objection."
+
+  "Other":
+    "Affirmation": "Encourage further engagement with an open-ended question."
+    "Acknowledgment": "Acknowledge their input and transition to a specific topic."
+    "Disagreement": "Redirect the conversation to clarify or resolve misalignments."
+    "Objection": "Handle concerns carefully and steer back to the main topic."
+    "Request for Action": "Respond with enthusiasm and outline clear next steps."
+    "Suggestion/Recommendation": "Acknowledge the suggestion and adapt the discussion."
+    "Other": "Probe for clarification or additional details to guide the conversation."
+    "Question": "Answer thoroughly and steer toward relevant topics."
+    "Clarification": "Clarify their statement and refocus the discussion."
+    "Explanation": "Provide clear information to add value to the conversation."
