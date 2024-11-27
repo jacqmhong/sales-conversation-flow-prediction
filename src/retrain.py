@@ -1,5 +1,7 @@
 # retrain.py: Script for retraining the LSTM models based on detected drift
 
+import logging
+import os
 import pandas as pd
 import pickle
 import yaml
@@ -11,6 +13,15 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from train import prepare_features, create_sequences
+
+# Set up logging
+log_dir = "../logs"
+os.makedirs(log_dir, exist_ok=True)
+logging.basicConfig(
+    filename=os.path.join(log_dir, "retrain.log"),
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # Load configs
 config_path = "../config/config.yaml"
@@ -37,7 +48,6 @@ def evaluate_metrics(model, X_seq, y_seq):
     performance_drift_detected = any(metrics[metric] < PERFORMANCE_THRESHOLDS[metric] for metric in PERFORMANCE_THRESHOLDS)
     return performance_drift_detected, metrics
 
-# Retrain the LSTM model for a specific target and save the updated model if metrics meet thresholds.
 def retrain_lstm_model(target_name, model_save_path, label_encoder_path):
     # Prepare features and sequences for new data
     train_data = pd.read_csv(TRAIN_DATA_PATH)  # typically new or appended data
@@ -48,6 +58,8 @@ def retrain_lstm_model(target_name, model_save_path, label_encoder_path):
         label_encoder = pickle.load(f)
     y_train = label_encoder.transform(train_data[target_name])
     y_val = label_encoder.transform(val_data[target_name])
+
+    # Prepare sequences of the new data for LSTM
     sequence_len = config["lstm"][target_name]["sequence_len"]
     X_train_seq, y_train_seq = create_sequences(X_train, y_train, train_data["conversation_id"].to_numpy(), sequence_len)
     X_val_seq, y_val_seq = create_sequences(X_val, y_val, val_data["conversation_id"].to_numpy(), sequence_len)
@@ -71,33 +83,38 @@ def retrain_lstm_model(target_name, model_save_path, label_encoder_path):
     model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy", Precision(), Recall()])
 
     # Train
+    logging.info(f"Starting model training for {target_name}...")
     early_stopping = EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)
-    print(f"Retraining LSTM model for {target_name}...")
     history = model.fit(X_train_seq, y_train_seq, validation_data=(X_val_seq, y_val_seq),
                         epochs=max_epochs, batch_size=batch_size, callbacks=[early_stopping])
+    logging.info("Model training completed.")
 
     # Evaluate
     performance_drift_detected, metrics = evaluate_metrics(model, X_val_seq, y_val_seq)
-    print(f"Retrained Model Metrics for {target_name} - {metrics}")
+    logging.info(f"Retrained Model Metrics for {target_name} - {metrics}")
     if performance_drift_detected:
-        # To avoid using a subpar model in prod
-        print("Retraining complete, but model metrics did not meet thresholds. No update performed.")
+        logging.warning(f"Retraining complete, but model metrics for {target_name} did not meet thresholds. No update performed.")
     else:
         model.save(model_save_path)
-        print(f"Retrained model saved to {model_save_path}.")
+        logging.info(f"Retrained model for {target_name} saved to {model_save_path}. Metrics: {metrics}")
+
 
 # Execute retraining
 if __name__ == "__main__":
-    # Retrain and save response_type model
-    retrain_lstm_model(
-        target_name="response_type",
-        model_save_path="../models/lstm_models/lstm_response_type_model_with_metadata.h5",
-        label_encoder_path="../models/label_encoders/label_encoder_response_type.pkl"
-    )
+    try:
+        # Retrain and save response_type model
+        retrain_lstm_model(
+            target_name="response_type",
+            model_save_path="../models/lstm_models/lstm_response_type_model_with_metadata.h5",
+            label_encoder_path="../models/label_encoders/label_encoder_response_type.pkl"
+        )
 
-    # Retrain and save conversation_stage model
-    retrain_lstm_model(
-        target_name="conversation_stage",
-        model_save_path="../models/lstm_models/lstm_conversation_stage_model_with_metadata.h5",
-        label_encoder_path="../models/label_encoders/label_encoder_conversation_stage.pkl"
-    )
+        # Retrain and save conversation_stage model
+        retrain_lstm_model(
+            target_name="conversation_stage",
+            model_save_path="../models/lstm_models/lstm_conversation_stage_model_with_metadata.h5",
+            label_encoder_path="../models/label_encoders/label_encoder_conversation_stage.pkl"
+        )
+
+    except Exception as e:
+        logging.error(f"Error during retraining process: {str(e)}")
