@@ -9,6 +9,7 @@ import pandas as pd
 import pickle
 from sklearn.metrics import classification_report
 from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.metrics import Precision, Recall
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
@@ -100,7 +101,7 @@ def train_and_save_lstm(target_name):
     model.add(Dense(len(label_encoder.classes_), activation="softmax"))
 
     optimizer = Adam(learning_rate=learning_rate)
-    model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy", "precision", "recall"]) # class imbalance - accuracy isn't enough
+    model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy", Precision(), Recall()]) # class imbalance - accuracy isn't enough
 
     # Train and evaluate model
     print(f"Training LSTM model for {target_name} prediction...")
