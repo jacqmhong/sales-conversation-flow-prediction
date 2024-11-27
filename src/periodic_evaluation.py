@@ -4,6 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
+from retrain import retrain_lstm_model
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import to_categorical
@@ -30,13 +31,19 @@ with open(CONFIG_PATH, "r") as config_file:
     config = yaml.safe_load(config_file)
 
 DRIFT_REPORT_PATH = "../logs/drift_report.csv"
-MODEL_PATH = "../models/lstm_models/lstm_response_type_model_with_metadata.h5"
-LABEL_ENCODER_PATH = "../models/label_encoders/label_encoder_response_type.pkl"
+MODEL_PATHS = {
+    "response_type": "../models/lstm_models/lstm_response_type_model_with_metadata.h5",
+    "conversation_stage": "../models/lstm_models/lstm_conversation_stage_model_with_metadata.h5"
+}
+LABEL_ENCODER_PATHS = {
+    "response_type": "../models/label_encoders/label_encoder_response_type.pkl",
+    "conversation_stage": "../models/label_encoders/label_encoder_conversation_stage.pkl"
+}
 REFERENCE_DATA_PATH = "../data/processed/train_data.csv"  # for data drift baseline
 NEW_DATA_PATH = "../data/processed/test_data.csv"  # would instead use newly generated data to detect drift
 
 # Performance Drift Monitoring - Evaluates and logs the model's performance on the new data to monitor performance.
-def evaluate_performance(model, X_seq, y_seq, thresholds):
+def monitor_performance_drift(model, X_seq, y_seq):
     preds = np.argmax(model.predict(X_seq), axis=1)
     y_true = np.argmax(y_seq, axis=1)
 
@@ -47,7 +54,12 @@ def evaluate_performance(model, X_seq, y_seq, thresholds):
         "f1_score": f1_score(y_true, preds, average="weighted", zero_division=0),
     }
 
-    performance_drift_detected = any(metrics[metric] < thresholds[metric] for metric in thresholds)
+    logging.info(f"Performance Metrics - {metrics}")
+    performance_drift_detected = any(metrics[metric] < PERFORMANCE_THRESHOLDS[metric] for metric in PERFORMANCE_THRESHOLDS)
+    if performance_drift_detected:
+        for metric, value in metrics.items():
+            if value < PERFORMANCE_THRESHOLDS[metric]:
+                logging.warning(f"{metric.capitalize()} below threshold: {value:.4f}")
     return performance_drift_detected, metrics
 
 # Data Drift Monitoring - Compares summary statistics of new data against reference data to detect data drift.
@@ -79,11 +91,12 @@ def monitor_data_drift(new_data, reference_data):
     data_drift_detected = total_drift > DRIFT_THRESHOLD
     return data_drift_detected, drift_report
 
-# Function to log performance and data drift info to a csv file. Always logs regardless of whether is drift detected.
-def log_drift_report(performance_drift, data_drift, performance_metrics, data_drift_details):
+# Function to log performance and data drift info to a csv file. Always logs regardless of whether drift is detected.
+def log_drift_report(target_name, performance_drift, data_drift, performance_metrics, data_drift_details):
     report_exists = os.path.isfile(DRIFT_REPORT_PATH)
     report_data = {
         "timestamp": datetime.now(),
+        "target": target_name,
         "performance_drift_detected": performance_drift,
         "data_drift_detected": data_drift,
         "accuracy": performance_metrics.get("accuracy"),
@@ -99,53 +112,43 @@ def log_drift_report(performance_drift, data_drift, performance_metrics, data_dr
     else:
         report_df.to_csv(DRIFT_REPORT_PATH, mode="w", header=True, index=False) # write
 
-    logging.info("Drift report updated.")
+    logging.info(f"Drift report updated for {target_name}.")
     if performance_drift or data_drift:
-        logging.warning("Drift detected and logged.")
+        logging.warning(f"Drift detected for {target_name} and logged.")
     else:
-        logging.info("No significant drift detected.")
+        logging.info(f"No significant drift detected for {target_name}.")
 
 
 if __name__ == "__main__":
     try:
-        # Load model and label encoder
-        logging.info("Loading model and label encoder...")
-        model = load_model(MODEL_PATH)
-        with open(LABEL_ENCODER_PATH, "rb") as f:
-            label_encoder = pickle.load(f)
-
         # Load and preprocess new data
-        logging.info("Loading new data...")
         new_data = pd.read_csv(NEW_DATA_PATH)
         X_new = prepare_features(new_data)
 
-        sequence_len = config["lstm"]["response_type"]["sequence_len"]
-        y_new = label_encoder.transform(new_data["response_type"])
-        X_new_seq, y_new_seq = create_sequences(X_new, y_new, new_data["conversation_id"].to_numpy(), sequence_len)
-        y_new_seq = to_categorical(y_new_seq, num_classes=len(label_encoder.classes_))
+        for target_name in ["response_type", "conversation_stage"]:
+            # Load model and label encoder
+            model = load_model(MODEL_PATHS[target_name])
+            with open(LABEL_ENCODER_PATHS[target_name], "rb") as f:
+                label_encoder = pickle.load(f)
 
-        # Performance Drift Monitoring
-        logging.info("Evaluating performance...")
-        performance_drift_detected, performance_metrics = evaluate_performance(model, X_new_seq, y_new_seq)
-        logging.info(f"Performance Metrics - {performance_metrics}")
-        if performance_drift_detected:
-            for metric, value in performance_metrics.items():
-                if value < PERFORMANCE_THRESHOLDS[metric]:
-                    logging.warning(f"{metric.capitalize()} below threshold: {value:.4f}")
+            # Form sequences for LSTM
+            sequence_len = config["lstm"][target_name]["sequence_len"]
+            y_new = label_encoder.transform(new_data[target_name])
+            X_new_seq, y_new_seq = create_sequences(X_new, y_new, new_data["conversation_id"].to_numpy(), sequence_len)
+            y_new_seq = to_categorical(y_new_seq, num_classes=len(label_encoder.classes_))
 
-        # Data Drift Monitoring
-        logging.info("Monitoring data drift...")
-        reference_data = pd.read_csv(REFERENCE_DATA_PATH)
-        data_drift_detected, data_drift_details = monitor_data_drift(new_data, reference_data)
+            # Drift Monitoring
+            reference_data = pd.read_csv(REFERENCE_DATA_PATH)
+            data_drift_detected, data_drift_details = monitor_data_drift(new_data, reference_data)
+            performance_drift_detected, performance_metrics = monitor_performance_drift(model, X_new_seq, y_new_seq)
+            log_drift_report(target_name, performance_drift_detected, data_drift_detected, performance_metrics, data_drift_details)
 
-        log_drift_report(performance_drift_detected, data_drift_detected, performance_metrics, data_drift_details)
-
-        # Trigger retraining if drift detected
-        if performance_drift_detected or data_drift_detected:
-            logging.info("Drift detected. Triggering model retraining.")
-            # TODO: retrain_model()
-        else:
-            logging.info("No significant drift detected. No retraining required.")
+            # Trigger retraining if drift detected
+            if performance_drift_detected or data_drift_detected:
+                logging.info(f"Drift detected for {target_name}. Triggering model retraining.")
+                retrain_lstm_model(target_name, MODEL_PATHS[target_name], LABEL_ENCODER_PATHS[target_name])
+            else:
+                logging.info(f"No significant drift detected for {target_name}. No retraining required.")
 
     except Exception as e:
         logging.error(f"Error during periodic evaluation: {str(e)}")

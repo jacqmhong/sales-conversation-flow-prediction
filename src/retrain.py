@@ -3,13 +3,13 @@
 import pandas as pd
 import pickle
 import yaml
-from periodic_evaluation import evaluate_performance
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.metrics import Precision, Recall
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from train import prepare_features, create_sequences
 
 # Load configs
@@ -23,6 +23,19 @@ with open(thresholds_path, 'r') as threshold_file:
 
 TRAIN_DATA_PATH = "../data/processed/train_data.csv" # new data
 VAL_DATA_PATH = "../data/processed/val_data.csv"
+
+def evaluate_metrics(model, X_seq, y_seq):
+    preds = model.predict(X_seq)
+    y_pred = preds.argmax(axis=1)
+    y_true = y_seq.argmax(axis=1)
+    metrics = {
+        "accuracy": accuracy_score(y_true, y_pred),
+        "precision": precision_score(y_true, y_pred, average="weighted", zero_division=0),
+        "recall": recall_score(y_true, y_pred, average="weighted", zero_division=0),
+        "f1_score": f1_score(y_true, y_pred, average="weighted", zero_division=0),
+    }
+    performance_drift_detected = any(metrics[metric] < PERFORMANCE_THRESHOLDS[metric] for metric in PERFORMANCE_THRESHOLDS)
+    return performance_drift_detected, metrics
 
 # Retrain the LSTM model for a specific target and save the updated model if metrics meet thresholds.
 def retrain_lstm_model(target_name, model_save_path, label_encoder_path):
@@ -64,7 +77,7 @@ def retrain_lstm_model(target_name, model_save_path, label_encoder_path):
                         epochs=max_epochs, batch_size=batch_size, callbacks=[early_stopping])
 
     # Evaluate
-    performance_drift_detected, metrics = evaluate_performance(model, X_val_seq, y_val_seq, PERFORMANCE_THRESHOLDS)
+    performance_drift_detected, metrics = evaluate_metrics(model, X_val_seq, y_val_seq)
     print(f"Retrained Model Metrics for {target_name} - {metrics}")
     if performance_drift_detected:
         # To avoid using a subpar model in prod
