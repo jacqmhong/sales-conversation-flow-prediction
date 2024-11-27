@@ -36,7 +36,7 @@ REFERENCE_DATA_PATH = "../data/processed/train_data.csv"  # for data drift basel
 NEW_DATA_PATH = "../data/processed/test_data.csv"  # would instead use newly generated data to detect drift
 
 # Performance Drift Monitoring - Evaluates and logs the model's performance on the new data to monitor performance.
-def evaluate_performance(model, X_seq, y_seq):
+def evaluate_performance(model, X_seq, y_seq, thresholds):
     preds = np.argmax(model.predict(X_seq), axis=1)
     y_true = np.argmax(y_seq, axis=1)
 
@@ -47,12 +47,7 @@ def evaluate_performance(model, X_seq, y_seq):
         "f1_score": f1_score(y_true, preds, average="weighted", zero_division=0),
     }
 
-    logging.info(f"Performance Metrics - {metrics}")
-    performance_drift_detected = any(metrics[metric] < PERFORMANCE_THRESHOLDS[metric] for metric in PERFORMANCE_THRESHOLDS)
-    if performance_drift_detected:
-        for metric, value in metrics.items():
-            if value < PERFORMANCE_THRESHOLDS[metric]:
-                logging.warning(f"{metric.capitalize()} below threshold: {value:.4f}")
+    performance_drift_detected = any(metrics[metric] < thresholds[metric] for metric in thresholds)
     return performance_drift_detected, metrics
 
 # Data Drift Monitoring - Compares summary statistics of new data against reference data to detect data drift.
@@ -132,6 +127,11 @@ if __name__ == "__main__":
         # Performance Drift Monitoring
         logging.info("Evaluating performance...")
         performance_drift_detected, performance_metrics = evaluate_performance(model, X_new_seq, y_new_seq)
+        logging.info(f"Performance Metrics - {performance_metrics}")
+        if performance_drift_detected:
+            for metric, value in performance_metrics.items():
+                if value < PERFORMANCE_THRESHOLDS[metric]:
+                    logging.warning(f"{metric.capitalize()} below threshold: {value:.4f}")
 
         # Data Drift Monitoring
         logging.info("Monitoring data drift...")
