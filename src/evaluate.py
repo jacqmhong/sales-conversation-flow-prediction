@@ -83,13 +83,13 @@ if __name__ == "__main__":
     # Evaluate Response Type
     evaluate_target_models(target_name="response_type", config=config, df=df, X=X,
         markov_matrix_path="../models/markov_matrices/response_type_markov_transition_matrix.pkl",
-        lstm_model_path="../models/lstm_models/lstm_response_type_model_with_metadata.h5",
+        lstm_model_path="../models/lstm_models/response_type_model_v1.h5",
         label_encoder_path="../models/label_encoders/label_encoder_response_type.pkl",
     )
 
     # Evaluate Conversation Stage
     evaluate_target_models(target_name="conversation_stage", config=config, df=df, X=X,
         markov_matrix_path="../models/markov_matrices/conversation_stage_markov_transition_matrix.pkl",
-        lstm_model_path="../models/lstm_models/lstm_conversation_stage_model_with_metadata.h5",
+        lstm_model_path="../models/lstm_models/conversation_stage_model_v1.h5",
         label_encoder_path="../models/label_encoders/label_encoder_conversation_stage.pkl",
     )

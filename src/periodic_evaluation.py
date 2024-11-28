@@ -9,6 +9,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import to_categorical
 from train import prepare_features, create_sequences
+from utils import load_latest_model_path
 import yaml
 
 # Set up logging
@@ -32,8 +33,8 @@ with open(CONFIG_PATH, "r") as config_file:
 
 DRIFT_REPORT_PATH = "../logs/drift_report.csv"
 MODEL_PATHS = {
-    "response_type": "../models/lstm_models/lstm_response_type_model_with_metadata.h5",
-    "conversation_stage": "../models/lstm_models/lstm_conversation_stage_model_with_metadata.h5"
+    "response_type": load_latest_model_path("response_type"),
+    "conversation_stage": load_latest_model_path("conversation_stage")
 }
 LABEL_ENCODER_PATHS = {
     "response_type": "../models/label_encoders/label_encoder_response_type.pkl",
@@ -146,7 +147,7 @@ if __name__ == "__main__":
             # Trigger retraining if drift detected
             if performance_drift_detected or data_drift_detected:
                 logging.info(f"Drift detected for {target_name}. Triggering model retraining.")
-                retrain_lstm_model(target_name, MODEL_PATHS[target_name], LABEL_ENCODER_PATHS[target_name])
+                retrain_lstm_model(target_name, LABEL_ENCODER_PATHS[target_name])
             else:
                 logging.info(f"No significant drift detected for {target_name}. No retraining required.")
 

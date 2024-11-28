@@ -18,3 +18,4 @@ src/mlruns/
 # Ignore logs
 logs/
 *.log
+/models/model_registry.yaml

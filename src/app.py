@@ -9,6 +9,7 @@ from sentence_transformers import SentenceTransformer
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from train import create_sequences
+from utils import load_latest_model_path
 import yaml
 
 # Set up logging
@@ -20,6 +21,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+# Initialize Flask app
 app = Flask(__name__)
 CORS(app)
 
@@ -29,12 +31,10 @@ with open("../config/config.yaml", "r") as config_file:
 with open("../config/combined_action_mapping.yaml", "r") as mapping_file:
     combined_action_mapping = yaml.safe_load(mapping_file)["combined_action_mapping"]
 
-# Load LSTM models and encoders
+# Load necessary components
 try:
     embed_model_name = config["embedding"]["model_name"]
     embedding_model = SentenceTransformer(embed_model_name)
-    response_type_model = load_model("../models/lstm_models/lstm_response_type_model_with_metadata.h5")
-    conversation_stage_model = load_model("../models/lstm_models/lstm_conversation_stage_model_with_metadata.h5")
     with open("../models/label_encoders/label_encoder_response_type.pkl", "rb") as f:
         response_type_label_encoder = pickle.load(f)
     with open("../models/label_encoders/label_encoder_conversation_stage.pkl", "rb") as f:
@@ -53,7 +53,19 @@ except Exception as e:
     logging.error(f"Error loading models or configurations: {str(e)}")
     raise
 
-# Preprocess incoming convo data
+# Cache for model paths and objects
+model_cache = {}
+
+# Utility Functions
+def get_cached_model(target_name):
+    latest_model_path = load_latest_model_path(target_name, logging)
+    if target_name not in model_cache or model_cache[target_name]["path"] != latest_model_path:
+        model_cache[target_name] = {
+            "path": latest_model_path,
+            "model": load_model(latest_model_path)
+        }
+    return model_cache[target_name]["model"]
+
 def preprocess_realtime_data(data, sequence_len):
     try:
         df = pd.DataFrame(data) # json to df
@@ -76,16 +88,34 @@ def preprocess_realtime_data(data, sequence_len):
         logging.error(f"Error during preprocessing: {str(e)}")
         raise
 
+# Health Check Endpoint
+@app.route("/health", methods=["GET"])
+def health_check():
+    try:
+        # Check if models and encoders are loaded
+        get_cached_model("response_type")
+        get_cached_model("conversation_stage")
+        return jsonify({"status": "healthy", "details": "All models and configurations are loaded."}), 200
+    except Exception as e:
+        logging.error(f"Health check failed: {str(e)}")
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+# API Endpoints
 # Top prediction and probabilities of the next response_type
 @app.route("/predict-prospect-response", methods=["POST"])
 def predict_prospect_response():
     try:
+        # Preprocess incoming data
         input_data = request.get_json()
         sequence_len = config["lstm"]["response_type"]["sequence_len"]
-        X_seq = preprocess_realtime_data(input_data["history"], sequence_len) # preprocess
-        response_type_probs = response_type_model.predict(X_seq)[-1].tolist() # lstm pred probabilities
+        X_seq = preprocess_realtime_data(input_data["history"], sequence_len)
+
+        # Predict
+        response_type_model = get_cached_model("response_type")
+        response_type_probs = response_type_model.predict(X_seq)[-1].tolist()
         response_type_probs = {label: round(prob, 2) for label, prob in zip(response_type_label_encoder.classes_, response_type_probs)}
         top_prediction = max(response_type_probs, key=response_type_probs.get)
+
         return jsonify({"top_prediction": top_prediction, "response_type_probabilities": response_type_probs})
     except Exception as e:
         logging.error(f"Error in /predict-prospect-response: {str(e)}")
@@ -95,12 +125,17 @@ def predict_prospect_response():
 @app.route("/predict-next-conversation-stage", methods=["POST"])
 def predict_conversation_stage():
     try:
+        # Preprocess
         input_data = request.get_json()
         sequence_len = config["lstm"]["conversation_stage"]["sequence_len"]
-        X_seq = preprocess_realtime_data(input_data["history"], sequence_len) # preprocess
-        conv_stage_probs = conversation_stage_model.predict(X_seq)[-1].tolist() # lstm pred probabilities
+        X_seq = preprocess_realtime_data(input_data["history"], sequence_len)
+
+        # Predict
+        conversation_stage_model = get_cached_model("conversation_stage")
+        conv_stage_probs = conversation_stage_model.predict(X_seq)[-1].tolist()
         conv_stage_probs = {label: round(prob, 2) for label, prob in zip(conversation_stage_label_encoder.classes_, conv_stage_probs)}
         top_prediction = max(conv_stage_probs, key=conv_stage_probs.get)
+
         return jsonify({"top_prediction": top_prediction, "conversation_stage_probabilities": conv_stage_probs})
     except Exception as e:
         logging.error(f"Error in /predict-next-conversation-stage: {str(e)}")
@@ -118,11 +153,13 @@ def suggest_sales_response():
         X_seq_stage = preprocess_realtime_data(input_data["history"], stage_seq_len)
 
         # Predict response_type probabilities
+        response_type_model = get_cached_model("response_type")
         response_type_probs = response_type_model.predict(X_seq_response)[-1].tolist()
         response_type_probs = {label: round(prob, 2) for label, prob in zip(response_type_label_encoder.classes_, response_type_probs)}
         top_response_type = max(response_type_probs, key=response_type_probs.get)
 
         # Predict conversation_stage probabilities
+        conversation_stage_model = get_cached_model("conversation_stage")
         conv_stage_probs = conversation_stage_model.predict(X_seq_stage)[-1].tolist()
         conv_stage_probs = {label: round(prob, 2) for label, prob in zip(conversation_stage_label_encoder.classes_, conv_stage_probs)}
         top_conversation_stage = max(conv_stage_probs, key=conv_stage_probs.get)

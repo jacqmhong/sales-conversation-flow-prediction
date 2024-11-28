@@ -15,6 +15,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
+from utils import update_model_registry
 import yaml
 
 # Load model config
@@ -120,10 +121,13 @@ def train_and_save_lstm(target_name):
         model.fit(X_train_seq, y_train_seq, validation_data=(X_val_seq, y_val_seq), epochs=max_epochs, batch_size=batch_size, callbacks=[early_stopping])
         loss, accuracy, precision, recall = model.evaluate(X_val_seq, y_val_seq, verbose=0)
         f1_score = 2 * (precision * recall) / (precision + recall) if precision + recall > 0 else 0
-        mlflow.log_metrics({"accuracy": accuracy, "precision": precision, "recall": recall, "f1_score": f1_score})
+        metrics = {"accuracy": accuracy, "precision": precision, "recall": recall, "f1_score": f1_score}
+        mlflow.log_metrics(metrics)
 
         # Save model
-        model.save(f"../models/lstm_models/lstm_{target_name}_model_with_metadata.h5")
+        initial_model_path = f"../models/lstm_models/{target_name}_model_v1.h5"
+        model.save(initial_model_path)
+        update_model_registry(target_name=target_name, model_path=initial_model_path, metrics=metrics)
         mlflow.keras.log_model(model, artifact_path="model")
 
 
