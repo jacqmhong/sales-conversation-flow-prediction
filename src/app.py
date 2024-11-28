@@ -88,6 +88,25 @@ def preprocess_realtime_data(data, sequence_len):
         logging.error(f"Error during preprocessing: {str(e)}")
         raise
 
+def validate_input_data(input_data):
+    """
+    Validates the input data structure and contents for endpoints.
+    Ensures the input has a 'history' key with a list of entries,
+    and that each entry includes 'response' and 'speaker' keys.
+
+    Parameters:
+    - input_data (dict): The incoming JSON request data.
+
+    Raises:
+    - ValueError: If the input format is invalid.
+    """
+    if "history" not in input_data or not isinstance(input_data["history"], list):
+        raise ValueError("Invalid input: 'history' must be a key with a list value.")
+
+    history = input_data["history"]
+    if not all("response" in item and "speaker" in item for item in history):
+        raise ValueError("Invalid input format: Each 'history' entry must include 'response' and 'speaker' keys.")
+
 # Health Check Endpoint
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -107,6 +126,7 @@ def predict_prospect_response():
     try:
         # Preprocess incoming data
         input_data = request.get_json()
+        validate_input_data(input_data)
         sequence_len = config["lstm"]["response_type"]["sequence_len"]
         X_seq = preprocess_realtime_data(input_data["history"], sequence_len)
 
@@ -117,9 +137,12 @@ def predict_prospect_response():
         top_prediction = max(response_type_probs, key=response_type_probs.get)
 
         return jsonify({"top_prediction": top_prediction, "response_type_probabilities": response_type_probs})
+    except ValueError as e:
+        logging.error(f"Validation error in /predict-prospect-response: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         logging.error(f"Error in /predict-prospect-response: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 500
 
 # Top prediction and probabilities of the next conversation_stage
 @app.route("/predict-next-conversation-stage", methods=["POST"])
@@ -127,6 +150,7 @@ def predict_conversation_stage():
     try:
         # Preprocess
         input_data = request.get_json()
+        validate_input_data(input_data)
         sequence_len = config["lstm"]["conversation_stage"]["sequence_len"]
         X_seq = preprocess_realtime_data(input_data["history"], sequence_len)
 
@@ -137,9 +161,12 @@ def predict_conversation_stage():
         top_prediction = max(conv_stage_probs, key=conv_stage_probs.get)
 
         return jsonify({"top_prediction": top_prediction, "conversation_stage_probabilities": conv_stage_probs})
+    except ValueError as e:
+        logging.error(f"Validation error in /predict-next-conversation-stage: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         logging.error(f"Error in /predict-next-conversation-stage: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 500
 
 # Suggests a next action according to the resulting response_type and conversation_stage prediction combination
 @app.route("/suggest-sales-response", methods=["POST"])
@@ -147,6 +174,7 @@ def suggest_sales_response():
     try:
         # Preprocess data
         input_data = request.get_json()
+        validate_input_data(input_data)
         response_seq_len = config["lstm"]["response_type"]["sequence_len"]
         stage_seq_len = config["lstm"]["conversation_stage"]["sequence_len"]
         X_seq_response = preprocess_realtime_data(input_data["history"], response_seq_len)
@@ -175,9 +203,12 @@ def suggest_sales_response():
             "response_type_probabilities": response_type_probs,
             "conversation_stage_probabilities": conv_stage_probs
         })
+    except ValueError as e:
+        logging.error(f"Validation error in /suggest-sales-response: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         logging.error(f"Error in /suggest-sales-response: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 500
 
 # Markov model uses cluster transition probabilities to predict the next likely state
 @app.route("/predict-conversation-direction", methods=["POST"])
@@ -212,9 +243,12 @@ def predict_conversation_direction():
             "predicted_next_cluster": int(next_cluster),
             "transition_probabilities": sorted_transitions
         })
+    except ValueError as e:
+        logging.error(f"Validation error in /predict-conversation-direction: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         logging.error(f"Error in /predict-conversation-direction: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
