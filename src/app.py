@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import logging
 import os
 import numpy as np
@@ -21,9 +23,10 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# Initialize Flask app
+# Initialize Flask app and rate limiter
 app = Flask(__name__)
 CORS(app)
+limiter = Limiter(get_remote_address, app=app, default_limits=["100 per minute"])
 
 # Load configs
 with open("../config/config.yaml", "r") as config_file:
@@ -90,12 +93,9 @@ def preprocess_realtime_data(data, sequence_len):
 
 def validate_input_data(input_data):
     """
-    Validates the input data structure and contents for endpoints.
+    Validates the input data structure and contents for prediction endpoints.
     Ensures the input has a 'history' key with a list of entries,
     and that each entry includes 'response' and 'speaker' keys.
-
-    Parameters:
-    - input_data (dict): The incoming JSON request data.
 
     Raises:
     - ValueError: If the input format is invalid.
@@ -108,6 +108,7 @@ def validate_input_data(input_data):
         raise ValueError("Invalid input format: Each 'history' entry must include 'response' and 'speaker' keys.")
 
 # Health Check Endpoint
+@limiter.limit("10 per minute")
 @app.route("/health", methods=["GET"])
 def health_check():
     try:
@@ -121,6 +122,7 @@ def health_check():
 
 # API Endpoints
 # Top prediction and probabilities of the next response_type
+@limiter.limit("60 per minute")
 @app.route("/predict-prospect-response", methods=["POST"])
 def predict_prospect_response():
     try:
@@ -145,6 +147,7 @@ def predict_prospect_response():
         return jsonify({"error": str(e)}), 500
 
 # Top prediction and probabilities of the next conversation_stage
+@limiter.limit("60 per minute")
 @app.route("/predict-next-conversation-stage", methods=["POST"])
 def predict_conversation_stage():
     try:
@@ -169,6 +172,7 @@ def predict_conversation_stage():
         return jsonify({"error": str(e)}), 500
 
 # Suggests a next action according to the resulting response_type and conversation_stage prediction combination
+@limiter.limit("30 per minute")
 @app.route("/suggest-sales-response", methods=["POST"])
 def suggest_sales_response():
     try:
@@ -211,6 +215,7 @@ def suggest_sales_response():
         return jsonify({"error": str(e)}), 500
 
 # Markov model uses cluster transition probabilities to predict the next likely state
+@limiter.limit("20 per minute")
 @app.route("/predict-conversation-direction", methods=["POST"])
 def predict_conversation_direction():
     try:
