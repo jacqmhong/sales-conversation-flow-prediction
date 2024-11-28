@@ -1,6 +1,7 @@
 # retrain.py: Script for retraining the LSTM models based on detected drift
 
 import logging
+import mlflow
 import os
 import pandas as pd
 import pickle
@@ -32,7 +33,7 @@ thresholds_path = "../config/thresholds.yaml"
 with open(thresholds_path, 'r') as threshold_file:
     PERFORMANCE_THRESHOLDS = yaml.safe_load(threshold_file)
 
-TRAIN_DATA_PATH = "../data/processed/train_data.csv" # new data
+TRAIN_DATA_PATH = "../data/processed/train_data.csv" # typically new or appended data
 VAL_DATA_PATH = "../data/processed/val_data.csv"
 
 def evaluate_metrics(model, X_seq, y_seq):
@@ -50,7 +51,7 @@ def evaluate_metrics(model, X_seq, y_seq):
 
 def retrain_lstm_model(target_name, model_save_path, label_encoder_path):
     # Prepare features and sequences for new data
-    train_data = pd.read_csv(TRAIN_DATA_PATH)  # typically new or appended data
+    train_data = pd.read_csv(TRAIN_DATA_PATH)
     val_data = pd.read_csv(VAL_DATA_PATH)
     X_train = prepare_features(train_data)
     X_val = prepare_features(val_data)
@@ -82,21 +83,35 @@ def retrain_lstm_model(target_name, model_save_path, label_encoder_path):
     optimizer = Adam(learning_rate=learning_rate)
     model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy", Precision(), Recall()])
 
-    # Train
-    logging.info(f"Starting model training for {target_name}...")
-    early_stopping = EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)
-    history = model.fit(X_train_seq, y_train_seq, validation_data=(X_val_seq, y_val_seq),
-                        epochs=max_epochs, batch_size=batch_size, callbacks=[early_stopping])
-    logging.info("Model training completed.")
+    with mlflow.start_run(run_name=f"Retrain_{target_name}"): # experiment tracking: log parameters and metrics
+        mlflow.log_params({
+            "target_name": target_name,
+            "lstm_units": lstm_units,
+            "dropout_rate": dropout_rate,
+            "batch_size": batch_size,
+            "max_epochs": max_epochs,
+            "learning_rate": learning_rate,
+            "sequence_len": sequence_len,
+        })
 
-    # Evaluate
-    performance_drift_detected, metrics = evaluate_metrics(model, X_val_seq, y_val_seq)
-    logging.info(f"Retrained Model Metrics for {target_name} - {metrics}")
-    if performance_drift_detected:
-        logging.warning(f"Retraining complete, but model metrics for {target_name} did not meet thresholds. No update performed.")
-    else:
-        model.save(model_save_path)
-        logging.info(f"Retrained model for {target_name} saved to {model_save_path}. Metrics: {metrics}")
+        # Train
+        logging.info(f"Starting model training for {target_name}...")
+        early_stopping = EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)
+        model.fit(X_train_seq, y_train_seq, validation_data=(X_val_seq, y_val_seq),
+                            epochs=max_epochs, batch_size=batch_size, callbacks=[early_stopping])
+        logging.info("Model training completed.")
+
+        # Evaluate
+        performance_drift_detected, metrics = evaluate_metrics(model, X_val_seq, y_val_seq)
+        mlflow.log_metrics(metrics)
+        logging.info(f"Retrained Model Metrics for {target_name} - {metrics}")
+
+        if performance_drift_detected:
+            logging.warning(f"Retraining complete, but model metrics for {target_name} did not meet thresholds. No update performed.")
+        else:
+            model.save(model_save_path)
+            mlflow.keras.log_model(model, artifact_path="model")
+            logging.info(f"Retrained model for {target_name} saved to {model_save_path}. Metrics: {metrics}")
 
 
 # Execute retraining

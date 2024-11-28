@@ -4,10 +4,11 @@ It combines embeddings with metadata features, builds and trains the models, and
 on the validation set using accuracy, precision, recall, and F1-score. The trained models and their corresponding
 metrics are saved for later use and comparison.
 """
+import mlflow
+import mlflow.keras
 import numpy as np
 import pandas as pd
 import pickle
-from sklearn.metrics import classification_report
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.metrics import Precision, Recall
 from tensorflow.keras.models import Sequential
@@ -103,27 +104,28 @@ def train_and_save_lstm(target_name):
     optimizer = Adam(learning_rate=learning_rate)
     model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy", Precision(), Recall()]) # class imbalance - accuracy isn't enough
 
-    # Train and evaluate model
-    print(f"Training LSTM model for {target_name} prediction...")
-    early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True) # for epochs
-    history = model.fit(X_train_seq, y_train_seq, validation_data=(X_val_seq, y_val_seq), epochs=max_epochs, batch_size=batch_size, callbacks=[early_stopping])
-    results = model.evaluate(X_val_seq, y_val_seq, verbose=0)
-    loss, accuracy, precision, recall = results
-    f1_score = 2 * (precision * recall) / (precision + recall) if precision + recall > 0 else 0
-    print(f"\nVal Results for {target_name}: Accuracy={accuracy:.2f}, Precision={precision:.2f}, Recall={recall:.2f}, F1-Score={f1_score:.2f}\n")
+    with mlflow.start_run(run_name=f"Train_{target_name}"): # experiment tracking: log parameters and metrics
+        mlflow.log_params({
+            "target_name": target_name,
+            "lstm_units": lstm_units,
+            "dropout_rate": dropout_rate,
+            "batch_size": batch_size,
+            "max_epochs": max_epochs,
+            "learning_rate": learning_rate,
+            "sequence_len": sequence_len,
+        })
 
-    # Generate and save classification report
-    y_pred = np.argmax(model.predict(X_val_seq), axis=1)
-    y_true = np.argmax(y_val_seq, axis=1)
-    report = classification_report(y_true, y_pred, target_names=label_encoder.classes_, labels=np.arange(len(label_encoder.classes_)))
-    print(f"\nClassification Report for {target_name}:\n{report}")
-    with open(f"../models/lstm_models/{target_name}_classification_report.txt", "w") as f:
-        f.write(report)
+        # Train and evaluate model
+        early_stopping = EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True) # for epochs
+        model.fit(X_train_seq, y_train_seq, validation_data=(X_val_seq, y_val_seq), epochs=max_epochs, batch_size=batch_size, callbacks=[early_stopping])
+        loss, accuracy, precision, recall = model.evaluate(X_val_seq, y_val_seq, verbose=0)
+        f1_score = 2 * (precision * recall) / (precision + recall) if precision + recall > 0 else 0
+        mlflow.log_metrics({"accuracy": accuracy, "precision": precision, "recall": recall, "f1_score": f1_score})
 
-    # Save model and training metrics
-    model.save(f"../models/lstm_models/lstm_{target_name}_model_with_metadata.h5")
-    metrics_df = pd.DataFrame(history.history)
-    metrics_df.to_csv(f"../models/lstm_models/{target_name}_training_metrics.csv", index=False)
+        # Save model
+        model.save(f"../models/lstm_models/lstm_{target_name}_model_with_metadata.h5")
+        mlflow.keras.log_model(model, artifact_path="model")
+
 
 # Main execution block: Train and save response_type and conversation_stage models
 if __name__ == "__main__":
