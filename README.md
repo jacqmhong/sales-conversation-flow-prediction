@@ -5,7 +5,7 @@ interactions. It predicts the next likely **response type**, **conversation stag
 tailored sales responses** and **forecasting conversation dynamics** to drive better outcomes.
 
 This is achieved using:
-* **Embeddings**: Transformer-based models (eg. Sentence-BERT) generate robust conversation representations.
+* **Embeddings**: Robust conversation representations are generated using **Sentence-BERT**, a specialized **Large Language Model (LLM)** fine-tuned for generating high-quality sentence embeddings.
 * **Clustering:** Conversations are grouped into meaningful patterns using PCA and KMeans.
 * **Sequence modeling:** LSTMs and Markov models capture temporal and sequential dependencies to predict conversational dynamics.
 
