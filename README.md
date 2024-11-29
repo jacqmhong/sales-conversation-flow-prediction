@@ -9,7 +9,9 @@ This is achieved using:
 * **Clustering:** Conversations are grouped into meaningful patterns using PCA and KMeans.
 * **Sequence modeling:** LSTMs and Markov models capture temporal and sequential dependencies to predict conversational dynamics.
 
-**Key features**
+## Key Features
+
+The following features demonstrate the project’s production-ready capabilities and focus on machine learning system design:
 * **Production-ready principles:**
    * Real-time **APIs** to serve predictions in low-latency scenarios.
    * Robust **model versioning and registry** for seamless deployment and rollback.
