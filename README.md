@@ -1,18 +1,32 @@
 # Sales Conversation Flow Prediction System
 
-This project implements a machine learning pipeline to analyze and improve sales conversations, providing actionable insights to optimize interactions. 
-It predicts the next likely **conversation stage**, **response type**, and **conversation direction** using:
+This project implements a machine learning pipeline to analyze and improve sales conversations, providing actionable insights to optimize 
+interactions. It predicts the next likely **response type**, **conversation stage**, and **conversation direction** while **recommending 
+tailored sales responses** and **forecasting conversation dynamics** to drive better outcomes.
+
+This is achieved using:
 * **Embeddings**: Transformer-based models (eg. Sentence-BERT) generate robust conversation representations.
 * **Clustering:** Conversations are grouped into meaningful patterns using PCA and KMeans.
 * **Sequence modeling:** LSTMs and Markov models capture temporal and sequential dependencies to predict conversational dynamics.
 
 **Key features**
-* **Production-ready principles:** Real-time APIs, model versioning and registry, and robust error handling to ensure reliable deployment.
-* **Monitoring and retraining:** Automated evaluation scripts, drift detection, and retraining workflows to maintain model performance.
-* **Scalability considerations:** Model caching to reduce latency and rate limiting to manage high request loads and prevent abuse during peak usage.
+* **Production-ready principles:**
+   * Real-time **APIs** to serve predictions in low-latency scenarios.
+   * Robust **model versioning and registry** for seamless deployment and rollback.
+   * End-to-end **error handling** and input validation to ensure reliability.
+* **Monitoring and retraining:**
+   * Automated **evaluation scripts** continuously monitor performance metrics.
+   * **Drift detection** identifies when retraining is required.
+   * Fully automated **retraining workflows** integrate new models into production without manual intervention.
+* **Scalability considerations:**
+   * **Model caching** minimizes inference latency.
+   * **Rate limiting** ensures resilience during high traffic, managing high request loads and preventing abuse during peak usage.
 
-By tackling real-world engineering challenges like conversation embeddings and predictive analytics, 
-this project demonstrates skills in **end-to-end machine learning system design, training, evaluation, deployment,** and **monitoring**.
+By addressing real-world engineering challenges, this project demonstrates skills in **end-to-end machine learning system design**:
+* **Dataset preparation** and **data pipeline engineering**.
+* **Training, evaluation, and deployment of machine learning models**.
+* **Automation of performance monitoring and retraining workflows**.
+* **Designing scalable and resilient ML systems** for production environments.
 
 
 ## Project Architecture
@@ -58,6 +72,20 @@ this project demonstrates skills in **end-to-end machine learning system design,
 6. **Evaluation (`evaluate.py`):** Measures model performance and logs results.
 7. **Monitoring (`periodic_evaluation.py`):** Periodically evaluates models for drift and logs reports.
 
+## Dataset
+
+The dataset used in this project is sourced from the [Sales Conversations dataset](https://huggingface.co/datasets/goendalf666/sales-conversations) on Hugging Face. It contains annotated sales dialogues, enabling exploration of conversation stages, response types, and conversational dynamics.
+
+## Exploratory Analysis and Prototyping
+
+This project includes Jupyter notebooks for exploratory data analysis and prototyping, providing insights that guided the production pipeline design:
+* `EDA.ipynb`: Examines the raw sales conversation dataset to uncover patterns, feature distributions, and preprocessing requirements.
+* `label_generation.ipynb`: Creates and verifies conversation labels for downstream tasks.
+* `EDA_labels.ipynb`: Explores the dataset while validating the quality, balance, and correctness of generated labels (eg. response_type, conversation_stage).
+* `cluster_analysis.ipynb`: Evaluates conversation embeddings to select the optimal clustering approach. It explores embedding models, uses PCA for dimensionality reduction, and compares clustering metrics, identifying KMeans with 4 clusters as the most effective. Includes visualizations aimed to highlight meaningful patterns.
+
+These notebooks bridge the gap between exploratory work and the deployment-ready pipeline, ensuring a strong foundation for the system.
+
 
 ## APIs
 
@@ -69,24 +97,27 @@ this project demonstrates skills in **end-to-end machine learning system design,
       ```json
       {
         "history": [
-          {"speaker": "Customer", "response": "TODO"},
-          {"speaker": "Salesman", "response": "TODO"},
-          {"speaker": "Customer", "response": "TODO"}
+          {"speaker": "Customer", "response": "I think the price is a bit too high."},
+          {"speaker": "Salesman", "response": "Many customers felt that way initially, but they found significant value in the product after using it."},
+          {"speaker": "Customer", "response": "That makes sense. Can you share more details about how it works?"},
+          {"speaker": "Salesman", "response": "Of course! Here's a quick overview of how our product can solve your problems effectively. And so on..."}
         ]
       }
       ```
     * **Output:**
       ```json
       {
-        "top_prediction": "Objection",
+        "top_prediction": "Question",
         "response_type_probabilities": {
-          "Objection": 0.71,
-          "Question": 0.13,
+          "Question": 0.64,
+          "Agreement": 0.18,
+          "Objection": 0.12,
           "Explanation": 0.06
         }
       }
       ```
       ***Note:** Additional response types omitted for brevity.*
+      * Based on the history, the system predicts that the customer is most likely to ask another question (64% probability), as they might want further clarification or more details.
 
 2. **Predict Next Conversation Stage**
     * **Endpoint:** `/predict-next-conversation-stage`
@@ -96,8 +127,8 @@ this project demonstrates skills in **end-to-end machine learning system design,
       ```json
       {
         "history": [
-          {"speaker": "Customer", "response": "TODO"},
-          {"speaker": "Salesman", "response": "TODO"}
+          {"speaker": "Customer", "response": "Can you tell me more about how this works?"},
+          {"speaker": "Salesman", "response": "Absolutely! Our platform makes the sales process easier by automating follow-ups and giving you detailed insights about your prospects."}
         ]
       }
       ```
@@ -107,14 +138,15 @@ this project demonstrates skills in **end-to-end machine learning system design,
         "top_prediction": "Product Discussion",
         "conversation_stage_probabilities": {
           "Introduction": 0.09,
-          "Information Gathering": 0.16,
-          "Product Discussion": 0.58
-          "Objection Handling": 0.04,
-          "Closing/Call to Action": 0.05,
+          "Information Gathering": 0.15,
+          "Product Discussion": 0.58,
+          "Objection Handling": 0.03,
+          "Closing/Call to Action": 0.04,
           "Other": 0.11,
         }
       }
       ```
+      * Based on the history, the system predicts that the next stage of the conversation is most likely to focus on Product Discussion (58% probability), where the salesman and customer dive deeper into the product’s details and features.
 
 3. **Suggest Sales Response**
     * **Endpoint:** `/suggest-sales-response`
@@ -124,8 +156,8 @@ this project demonstrates skills in **end-to-end machine learning system design,
       ```json
       {
         "history": [
-          {"speaker": "Customer", "response": "TODO"},
-          {"speaker": "Salesman", "response": "TODO"}
+          {"speaker": "Customer", "response": "I'm not sure this product is what we need."},
+          {"speaker": "Salesman", "response": "I understand your concerns. Could you share more about what you're looking for in a solution?"}
         ]
       }
       ```
@@ -151,6 +183,7 @@ this project demonstrates skills in **end-to-end machine learning system design,
       }
       ```
       ***Note:** Additional response types omitted for brevity.*
+      * Based on the conversation history, the system predicts that the customer’s next response is likely to be an Objection (71% probability), indicating hesitancy or concern. Given that the conversation is currently in the Product Discussion stage (58% probability), the suggested sales response is to “Reassure them with concrete examples of similar customer successes.” This approach helps address the objection while keeping the conversation productive.
 
 4. **Predict Conversation Direction**
     * **Endpoint:** `/predict-conversation-direction`
@@ -160,8 +193,8 @@ this project demonstrates skills in **end-to-end machine learning system design,
       ```json
       {
         "history": [
-          {"speaker": "Customer", "response": "TODO"},
-          {"speaker": "Salesman", "response": "TODO"}
+          {"speaker": "Customer", "response": "Can you explain how the pricing works?"},
+          {"speaker": "Salesman", "response": "Absolutely! Our pricing is based on usage tiers, so smaller teams can start at a lower cost, and scaling up is seamless."}
         ]
       }
       ```
@@ -169,7 +202,7 @@ this project demonstrates skills in **end-to-end machine learning system design,
       ```json
       {
         "current_state": [3, 2],
-        "predicted_next_cluster": 5,
+        "predicted_next_cluster": 3,
         "transition_probabilities": {
           "0": 0.26,
           "1": 0.12,
@@ -178,6 +211,8 @@ this project demonstrates skills in **end-to-end machine learning system design,
         }
       }
       ```
+      * The system identifies the current conversation flow using clusters: 3 for the customer’s query and 2 for the salesperson’s response. Based on these clusters, the Markov model predicts a transition to Cluster 3 (49% probability), reflecting the most likely direction of the conversation.
+      * While the exact meaning of these clusters depends on the underlying embedding and clustering strategy, this transition can guide further analysis or actionable suggestions for the sales process.
 
 
 ### **Other Output Examples**
@@ -222,17 +257,18 @@ this project demonstrates skills in **end-to-end machine learning system design,
 ## Technologies Used
 * **Machine Learning:** Sentence-BERT, LSTMs, Markov models, PCA, KMeans.
 * **Backend:** Flask APIs with error handling, rate limiting, and model caching.
-* **Experiment Tracking:** MLflow for logging metrics and version control.
+* **Experiment Tracking:** MLflow for logging metrics, model versioning, and performance tracking.
+* **Model Registry:** Centralized YAML-based model registry for version control and traceability.
 * **Deployment:** Docker for containerization.
-* **Monitoring:** Drift detection and retraining workflows.
+* **Monitoring:** Drift detection, retraining workflows, and automated integration of updated models.
 
 
 ## Future Enhancements
 
 1. **Improved Label Generation**
     * Refine current labels for better prediction accuracy.
-    * Add a label for outcomes like "Demo Booked," "Follow-Up Call Needed," and "Prospect Lost" to predict the likelihood of achieving favorable results.
-      * In addition: Suggest next-best actions to maximize the likelihood of desired results.
+    * Introduce outcome-oriented labels such as “Demo Booked,” “Follow-Up Call Needed,” and “Prospect Lost” to enable predicting the likelihood of achieving favorable results based on conversation history (eg. the first half of a conversation).
+      * Recommend next-best actions to maximize the likelihood of desired outcomes, such as booking a demo or making a sale.
 2. **Scalability**
     * Asynchronous predictions for real-time performance.
     * Cloud deployment with load balancing.
