@@ -18,8 +18,22 @@ train_df = train_df.sort_values(by=["conversation_id", "turn"])
 test_df = pd.read_csv("../data/processed/test_data.csv") # for evaluation
 test_df = test_df.sort_values(by=["conversation_id", "turn"])
 
-# Create the 2nd-order transition matrix (1st-order yielded worse results)
 def build_transition_matrix(sequences):
+    """
+    Creates a second-order Markov transition matrix from labeled sequences.
+
+    Counts transitions between pairs of consecutive states and the subsequent
+    state to build probabilities for each possible next state.
+
+    Parameters:
+    - sequences (list of lists): A list of sequences, where each sequence is
+      a list of states (e.g., labels or cluster IDs).
+
+    Returns:
+    - dict: A transition matrix where keys are tuples representing the current
+      state (pair of consecutive states) and values are dictionaries mapping
+      next states to their probabilities.
+    """
     # Count transitions for pairs of consecutive labels, eg. ('Disagreement', 'Question')
     transition_counts = defaultdict(lambda: defaultdict(int))
     for sequence in sequences:
@@ -38,6 +52,16 @@ def build_transition_matrix(sequences):
     return transition_matrix
 
 def process_markov_model(target_name, train_df, test_df):
+    """
+    Builds, evaluates, and saves a Markov transition matrix for a target variable.
+
+    Parameters:
+    - target_name (str): Name of the target variable.
+    - train_df (pd.DataFrame): Training dataframe, grouped by conversation_id,
+      containing labeled sequences for the target variable.
+    - test_df (pd.DataFrame): Test dataframe, grouped by conversation_id,
+      containing labeled sequences for evaluation.
+    """
     # Build and evaluate the transition matrix
     train_sequences = train_df.groupby("conversation_id")[target_name].apply(list)
     transition_matrix = build_transition_matrix(train_sequences) # build

@@ -12,14 +12,30 @@ from tensorflow.keras.utils import to_categorical
 from train import create_sequences, prepare_features
 import yaml
 
-# Helper for evaluate_markov_model to predict the next response using the markov transition matrix
 def get_markov_prediction(current_state, transition_matrix):
+    """
+    Predicts the next state using a Markov transition matrix.
+
+    Parameters:
+    - current_state (tuple): The current state represented as a tuple of two cluster labels.
+    - transition_matrix (dict): A dictionary where keys are states (tuples) and values are dictionaries of next-state probabilities.
+
+    Returns:
+    - int or None: The predicted next state, or None if the current state is not in the matrix.
+    """
     if current_state not in transition_matrix:
         return None  # no data for this state
     return max(transition_matrix[current_state], key=transition_matrix[current_state].get)
 
-# Evaluate the Markov model using accuracy, precision, recall, and F1-score.
 def evaluate_markov_model(sequences, transition_matrix, target_name):
+    """
+    Evaluates a Markov model using accuracy, precision, recall, and F1-score.
+
+    Parameters:
+    - sequences (list of lists): A list of sequences, where each sequence is a list of state IDs.
+    - transition_matrix (dict): A dictionary where keys are states (tuples) and values are dictionaries of next-state probabilities.
+    - target_name (str): The name of the target variable.
+    """
     y_true, y_pred = [], []
     for sequence in sequences:
         for i in range(len(sequence) - 2):
@@ -36,8 +52,18 @@ def evaluate_markov_model(sequences, transition_matrix, target_name):
     recall = recall_score(y_true, y_pred, average="weighted", zero_division=0)
     print(f"\n{target_name} Markov Model Results: Accuracy={accuracy:.2f}, Precision={precision:.2f}, Recall={recall:.2f}, F1-Score={f1:.2f}\n")
 
-# Evaluate the LSTM model
 def evaluate_lstm_model(model, X_test_seq, y_test_seq, label_encoder, target_name):
+    """
+    Calculates accuracy, precision, recall, and F1-score, and generates a
+    classification report for the given target variable.
+
+    Parameters:
+    - model (tf.keras.Model): The trained LSTM model to evaluate.
+    - X_test_seq (np.ndarray): Input test data sequences of shape (samples, sequence_len, features).
+    - y_test_seq (np.ndarray): True labels for the test data in one-hot encoded format.
+    - label_encoder (LabelEncoder): Encoder for target labels to map indices to class names.
+    - target_name (str): Name of the target variable being evaluated.
+    """
     preds = np.argmax(model.predict(X_test_seq), axis=1)
     y_true = np.argmax(y_test_seq, axis=1)
 
@@ -50,8 +76,19 @@ def evaluate_lstm_model(model, X_test_seq, y_test_seq, label_encoder, target_nam
     report = classification_report(y_true, preds, target_names=label_encoder.classes_, labels=np.arange(len(label_encoder.classes_)))
     print(f"\nLSTM Model Performance - Classification Report for {target_name}:\n{report}")
 
-# Evaluate both Markov and LSTM models for a specific target.
 def evaluate_target_models(target_name, config, df, X, markov_matrix_path, lstm_model_path, label_encoder_path):
+    """
+    Evaluates both Markov and LSTM models for a specific target variable.
+
+    Parameters:
+    - target_name (str): Name of the target variable being evaluated.
+    - config (dict): Configuration dictionary with model parameters.
+    - df (pd.DataFrame): Input dataframe containing conversation data and target labels.
+    - X (np.ndarray): Input feature matrix for LSTM model training/testing.
+    - markov_matrix_path (str): Path to the Markov model's transition matrix file.
+    - lstm_model_path (str): Path to the trained LSTM model file.
+    - label_encoder_path (str): Path to the label encoder file for the target variable.
+    """
     # Markov Model Evaluation
     with open(markov_matrix_path, "rb") as f:
         markov_matrix = pickle.load(f)

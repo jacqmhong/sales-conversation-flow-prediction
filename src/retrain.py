@@ -41,7 +41,21 @@ LABEL_ENCODER_PATHS = {
     "conversation_stage": "../models/label_encoders/label_encoder_conversation_stage.pkl"
 }
 
+
 def evaluate_metrics(model, X_seq, y_seq):
+    """
+    Evaluates model performance and checks for performance drift.
+
+    Parameters:
+    - model (tf.keras.Model): The trained model to evaluate.
+    - X_seq (np.ndarray): Input data sequences of shape (samples, sequence_len, features).
+    - y_seq (np.ndarray): True labels for the input data in one-hot encoded format.
+
+    Returns:
+    - tuple containing:
+        - performance_drift_detected (bool): True if any metric falls below its threshold.
+        - metrics (dict): Calculated performance metrics.
+    """
     preds = model.predict(X_seq)
     y_pred = preds.argmax(axis=1)
     y_true = y_seq.argmax(axis=1)
@@ -54,7 +68,16 @@ def evaluate_metrics(model, X_seq, y_seq):
     performance_drift_detected = any(metrics[metric] < PERFORMANCE_THRESHOLDS[metric] for metric in PERFORMANCE_THRESHOLDS)
     return performance_drift_detected, metrics
 
+
 def retrain_lstm_model(target_name, label_encoder_path):
+    """
+    Retrains an LSTM model for a target variable using new data, preparing sequences, training,
+    evaluating performance, and saving the model if thresholds are met, while logging details with MLflow.
+
+    Parameters:
+    - target_name (str): The name of the target variable to be modeled.
+    - label_encoder_path (str): Path to the label encoder file for the target variable.
+    """
     # Prepare features and sequences for new data
     train_data = pd.read_csv(TRAIN_DATA_PATH)
     val_data = pd.read_csv(VAL_DATA_PATH)

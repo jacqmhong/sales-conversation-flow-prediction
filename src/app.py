@@ -61,6 +61,16 @@ model_cache = {}
 
 # Utility Functions
 def get_cached_model(target_name):
+    """
+    Retrieves the latest cached model for the given target.
+    If the model cache is outdated, it reloads the latest model from the specified path.
+
+    Parameters:
+    - target_name (str): The name of the target to load the model for.
+
+    Returns:
+    - object: The cached model object.
+    """
     latest_model_path = load_latest_model_path(target_name, logging)
     if target_name not in model_cache or model_cache[target_name]["path"] != latest_model_path:
         model_cache[target_name] = {
@@ -70,6 +80,17 @@ def get_cached_model(target_name):
     return model_cache[target_name]["model"]
 
 def preprocess_realtime_data(data, sequence_len):
+    """
+    Prepares data for LSTM inference by encoding text into embeddings,
+    adding metadata (speaker, turn), and generating padded sequences.
+
+    Parameters:
+    - data (list[dict]): A list of dictionaries, each containing a "response" (str) and "speaker" (str).
+    - sequence_len (int): The sequence length for the LSTM model.
+
+    Returns:
+    - np.ndarray: A preprocessed sequence of shape (1, sequence_len, feature_dim).
+    """
     try:
         df = pd.DataFrame(data) # json to df
         texts = df["response"].tolist()
@@ -120,11 +141,12 @@ def health_check():
         logging.error(f"Health check failed: {str(e)}")
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
+
 # API Endpoints
-# Top prediction and probabilities of the next response_type
 @limiter.limit("60 per minute")
 @app.route("/predict-prospect-response", methods=["POST"])
 def predict_prospect_response():
+    """Predicts the next response type and its associated probabilities based on conversation history."""
     try:
         # Preprocess incoming data
         input_data = request.get_json()
@@ -146,10 +168,11 @@ def predict_prospect_response():
         logging.error(f"Error in /predict-prospect-response: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Top prediction and probabilities of the next conversation_stage
+
 @limiter.limit("60 per minute")
 @app.route("/predict-next-conversation-stage", methods=["POST"])
 def predict_conversation_stage():
+    """Predicts the next conversation stage and its associated probabilities based on conversation history."""
     try:
         # Preprocess
         input_data = request.get_json()
@@ -171,10 +194,11 @@ def predict_conversation_stage():
         logging.error(f"Error in /predict-next-conversation-stage: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Suggests a next action according to the resulting response_type and conversation_stage prediction combination
+
 @limiter.limit("30 per minute")
 @app.route("/suggest-sales-response", methods=["POST"])
 def suggest_sales_response():
+    """Suggests a next action according to the resulting response_type and conversation_stage prediction combination."""
     try:
         # Preprocess data
         input_data = request.get_json()
@@ -214,10 +238,11 @@ def suggest_sales_response():
         logging.error(f"Error in /suggest-sales-response: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Markov model uses cluster transition probabilities to predict the next likely state
+
 @limiter.limit("20 per minute")
 @app.route("/predict-conversation-direction", methods=["POST"])
 def predict_conversation_direction():
+    """Predicts the next likely conversation state (cluster) using a second-order Markov model."""
     try:
         # Get the last two responses from the convo history (due to second-order markov matrix)
         input_data = request.get_json()

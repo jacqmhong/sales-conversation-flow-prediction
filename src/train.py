@@ -25,8 +25,8 @@ with open("../config/config.yaml", "r") as config_file:
 train_df = pd.read_csv("../data/processed/train_data.csv")
 val_df = pd.read_csv("../data/processed/val_data.csv")
 
-# Combine embeddings with metadata features (speaker and turn)
 def prepare_features(df):
+    """Combines embeddings with metadata features (speaker and turn)"""
     embeddings = np.array(df["embeddings"].apply(eval).tolist())
     speaker_role = df["speaker"].map({"Customer": 0, "Salesman": 1}).to_numpy()
     turn_number = df.groupby("conversation_id")["turn"].transform(lambda x: x / x.max()).to_numpy() # within each convo
@@ -71,6 +71,16 @@ X_train = prepare_features(train_df)
 X_val = prepare_features(val_df)
 
 def train_and_save_lstm(target_name):
+    """
+    Trains, evaluates, and saves an LSTM model for the target variable, preparing
+    data sequences and logging parameters, metrics, and artifacts with MLflow.
+
+    Parameters:
+    - target_name (str): The name of the target variable to model.
+
+    Returns:
+    - None: Saves the model and logs metrics and parameters.
+    """
     # Model parameters based on target
     input_dim = X_train.shape[1] # embedding dim + metadata dim (2)
     lstm_config = config["lstm"][target_name]

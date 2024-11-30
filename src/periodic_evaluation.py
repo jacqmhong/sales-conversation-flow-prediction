@@ -43,8 +43,21 @@ LABEL_ENCODER_PATHS = {
 REFERENCE_DATA_PATH = "../data/processed/train_data.csv"  # for data drift baseline
 NEW_DATA_PATH = "../data/processed/test_data.csv"  # would instead use newly generated data to detect drift
 
-# Performance Drift Monitoring - Evaluates and logs the model's performance on the new data to monitor performance.
 def monitor_performance_drift(model, X_seq, y_seq):
+    """
+    Monitors performance drift by calculating the accuracy, precision, recall, and F1-score of new data,
+    and comparing them to predefined thresholds. Logs warnings for metrics below thresholds.
+
+    Parameters:
+    - model (tf.keras.Model): The trained model to evaluate.
+    - X_seq (np.ndarray): Input data sequences of shape (samples, sequence_len, features).
+    - y_seq (np.ndarray): True labels for the input data in one-hot encoded format.
+
+    Returns:
+    - tuple containing:
+        - performance_drift_detected (bool): True if any metric falls below its threshold, False otherwise.
+        - metrics (dict): A dictionary containing calculated performance metrics.
+    """
     preds = np.argmax(model.predict(X_seq), axis=1)
     y_true = np.argmax(y_seq, axis=1)
 
@@ -63,8 +76,20 @@ def monitor_performance_drift(model, X_seq, y_seq):
                 logging.warning(f"{metric.capitalize()} below threshold: {value:.4f}")
     return performance_drift_detected, metrics
 
-# Data Drift Monitoring - Compares summary statistics of new data against reference data to detect data drift.
 def monitor_data_drift(new_data, reference_data):
+    """
+    Detects data drift by comparing summary statistics of new data to reference data.
+    Logs a report and flags drift if it exceeds a threshold.
+
+    Parameters:
+    - new_data (pd.DataFrame): The new dataset to monitor for drift.
+    - reference_data (pd.DataFrame): The reference dataset to compare against.
+
+    Returns:
+    - tuple containing:
+        - data_drift_detected (bool): True if the total drift exceeds the threshold, False otherwise.
+        - drift_report (list of str): A report detailing the drift for each column.
+    """
     drift_report = []
     total_drift = 0
 
@@ -92,8 +117,18 @@ def monitor_data_drift(new_data, reference_data):
     data_drift_detected = total_drift > DRIFT_THRESHOLD
     return data_drift_detected, drift_report
 
-# Function to log performance and data drift info to a csv file. Always logs regardless of whether drift is detected.
 def log_drift_report(target_name, performance_drift, data_drift, performance_metrics, data_drift_details):
+    """
+    Logs performance and data drift information to a CSV file.
+    Always logs regardless of whether drift is detected.
+
+    Parameters:
+    - target_name (str): Name of the target variable being monitored.
+    - performance_drift (bool): Indicates if performance drift was detected.
+    - data_drift (bool): Indicates if data drift was detected.
+    - performance_metrics (dict): Metrics for model performance
+    - data_drift_details (list of str): Detailed descriptions of detected data drift.
+    """
     report_exists = os.path.isfile(DRIFT_REPORT_PATH)
     report_data = {
         "timestamp": datetime.now(),
